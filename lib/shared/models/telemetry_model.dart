@@ -21,8 +21,8 @@ class TelemetryModel {
 
     return TelemetryModel(
       timestamp: DateTime.parse(json['timestamp'] as String),
-      deviceId: deviceId,
-      component: component,
+      deviceId: deviceId ?? json['device_id'] as String?,
+      component: component ?? json['component'] as String?,
       metrics: metricsMap,
       status: json['status'] as String?,
     );
@@ -31,6 +31,8 @@ class TelemetryModel {
   Map<String, dynamic> toJson() {
     return {
       'timestamp': timestamp.toIso8601String(),
+      if (deviceId != null) 'device_id': deviceId,
+      if (component != null) 'component': component,
       'metrics': metrics.map((key, value) => MapEntry(key, value.toJson())),
       if (status != null) 'status': status,
     };

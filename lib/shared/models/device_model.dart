@@ -4,7 +4,7 @@ class DeviceModel {
   final String name;
   final String type;
   final String status;
-  final String? firmwareVersion;
+  final String? firmware;
   final DateTime? lastSeen;
 
   const DeviceModel({
@@ -12,7 +12,7 @@ class DeviceModel {
     required this.name,
     required this.type,
     required this.status,
-    this.firmwareVersion,
+    this.firmware,
     this.lastSeen,
   });
 
@@ -22,7 +22,7 @@ class DeviceModel {
       name: json['name'] as String,
       type: json['type'] as String? ?? 'ESP32',
       status: json['status'] as String,
-      firmwareVersion: json['firmware_version'] as String?,
+      firmware: json['firmware'] as String?,
       lastSeen: json['last_seen'] != null 
           ? DateTime.parse(json['last_seen'] as String) 
           : null,
@@ -35,7 +35,7 @@ class DeviceModel {
       'name': name,
       'type': type,
       'status': status,
-      'firmware_version': firmwareVersion,
+      'firmware': firmware,
       'last_seen': lastSeen?.toIso8601String(),
     };
   }
