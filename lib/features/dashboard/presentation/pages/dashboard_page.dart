@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/demo/demo_data_controller.dart';
 import '../providers/dashboard_provider.dart';
-import '../../../devices/presentation/pages/device_list_page.dart';
+import '../widgets/dashboard_charts.dart';
 import '../../../alerts/presentation/pages/alerts_page.dart';
-import '../../../telemetry/presentation/pages/telemetry_history_page.dart';
 import '../../../../shared/models/project_model.dart';
 import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../../../shell/main_shell_page.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -59,7 +60,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Text(project.name),
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/icons/app_logo.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                project.name,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -67,6 +87,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               context,
               MaterialPageRoute(builder: (_) => const AlertsPage()),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Logout',
+            onPressed: () => _confirmLogout(context, ref),
           ),
         ],
       ),
@@ -87,6 +112,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     ProjectModel project,
     DashboardSummary summary,
   ) {
+    // Ambil demo state untuk charts (sinkron, tidak re-trigger loading)
+    final demoState = AppConfig.isDemoMode
+        ? ref.watch(demoDataControllerProvider)
+        : null;
+
     return Stack(
       children: [
         RefreshIndicator(
@@ -100,7 +130,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 // 1. Banner Peringatan
                 if (summary.criticalAlerts > 0 || summary.warningAlerts > 0)
                   _AlertBanner(summary: summary),
-
                 if (summary.criticalAlerts > 0 || summary.warningAlerts > 0)
                   const SizedBox(height: 12),
 
@@ -108,7 +137,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 _SystemStatusCard(summary: summary),
                 const SizedBox(height: 12),
 
-                // 3. AI Greeting Bar
+                // 3. Charts Visualisasi Industri
+                if (demoState != null) ...[  
+                  DashboardChartsSection(
+                    demoState: demoState,
+                    onlineDevices: summary.onlineDevices,
+                    offlineDevices: summary.offlineDevices,
+                    totalDevices: summary.totalDevices,
+                  ),
+                  const SizedBox(height: 4),
+                ],
+
+                // 4. AI Greeting Bar
                 _AiGreetingBar(
                   onTap: () =>
                       ref.read(shellTabProvider.notifier).state = 1,
@@ -116,7 +156,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // 4. Sensor Node Digital Twin Explorer
+                // 5. Sensor Node Digital Twin Explorer
                 _DigitalTwinExplorer(
                   summary: summary,
                   selectedNodeIndex: _selectedNodeIndex,
@@ -126,7 +166,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // 5. Riwayat Log
+                // 6. Riwayat Log
                 _RiwayatLog(alerts: summary.recentAlerts),
                 const SizedBox(height: 12),
               ],
@@ -134,7 +174,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ),
 
-        // 6. Mic Input Bar (floating)
+        // 7. Mic Input Bar (floating)
         _MicInputBar(
           onTap: () => ref.read(shellTabProvider.notifier).state = 1,
         ),
@@ -142,7 +182,32 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
-
+  void _confirmLogout(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius)),
+        title: const Text('Keluar'),
+        content: const Text('Yakin ingin keluar dari sesi ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authProvider.notifier).logout();
+            },
+            style: TextButton.styleFrom(
+                foregroundColor: AppTheme.statusCritical),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildError(WidgetRef ref, String error) {
     return Center(
       child: Padding(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -9,11 +10,27 @@ class ProfilePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final project = ref.watch(selectedProjectProvider);
+    final auth = ref.watch(authProvider);
+    final user = auth.user;
 
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Profil'),
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/icons/app_logo.png',
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text('Profil'),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -24,22 +41,55 @@ class ProfilePage extends ConsumerWidget {
             _AppCard(
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 36,
-                    backgroundColor: Color(0xFFE8F0FD),
-                    child: Icon(Icons.person_rounded,
-                        size: 38, color: AppTheme.primary),
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'assets/icons/app_logo.png',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Operator Lapangan',
-                    style: TextStyle(
+                  Text(
+                    user?.displayName ?? 'Operator Lapangan',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
+                  if (user != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        user.role.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                   if (project != null)
                     Text(
                       project.name,
@@ -133,9 +183,8 @@ class ProfilePage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              ref.read(selectedProjectProvider.notifier).state = null;
-              Navigator.of(context)
-                  .popUntil((route) => route.isFirst);
+              Navigator.pop(context);
+              ref.read(authProvider.notifier).logout();
             },
             style:
                 TextButton.styleFrom(foregroundColor: AppTheme.statusCritical),
