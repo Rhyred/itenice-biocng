@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_service.dart';
 import '../../../../shared/models/telemetry_list_response.dart';
+import '../../../../core/config/app_config.dart';
+import '../../../../core/demo/demo_data_controller.dart';
 
 /// Parameters for the telemetry history query.
 class TelemetryParams {
@@ -46,6 +48,19 @@ class TelemetryNotifier extends AutoDisposeFamilyAsyncNotifier<TelemetryListResp
   }
 
   Future<TelemetryListResponse> _fetch({required int page}) async {
+    if (AppConfig.isDemoMode) {
+      final demoState = ref.watch(demoDataControllerProvider);
+      return TelemetryListResponse(
+        data: demoState.telemetryHistory,
+        meta: TelemetryListMeta(
+          totalCount: demoState.telemetryHistory.length,
+          currentPage: 1,
+          limit: 100,
+          totalPages: 1,
+        ),
+      );
+    }
+
     final apiService = ref.read(apiServiceProvider);
     
     // Validation: Do not call backend if start_time >= end_time

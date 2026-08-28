@@ -4,6 +4,8 @@ import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../../../devices/presentation/providers/device_provider.dart';
 import '../../../../core/api/api_service.dart';
+import '../../../../core/config/app_config.dart';
+import '../../../../core/demo/demo_data_controller.dart';
 
 /// A provider that holds the currently selected project for the dashboard.
 final selectedProjectProvider = StateProvider<ProjectModel?>((ref) => null);
@@ -38,7 +40,27 @@ final dashboardDataProvider = FutureProvider.autoDispose<DashboardSummary>((ref)
     throw Exception('No project selected');
   }
 
+  if (AppConfig.isDemoMode) {
+    final demoState = ref.watch(demoDataControllerProvider);
+    
+    int activeCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE').length;
+    int criticalCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE' && a.severity.toUpperCase() == 'CRITICAL').length;
+    int warningCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE' && a.severity.toUpperCase() == 'WARNING').length;
+
+    return DashboardSummary(
+      totalDevices: demoState.devices.length,
+      onlineDevices: demoState.devices.where((d) => d.status.toUpperCase() == 'ONLINE').length,
+      offlineDevices: demoState.devices.where((d) => d.status.toUpperCase() == 'OFFLINE').length,
+      recentAlerts: demoState.alerts,
+      latestTelemetry: demoState.telemetryHistory.isNotEmpty ? [demoState.telemetryHistory.first] : [],
+      criticalAlerts: criticalCount,
+      warningAlerts: warningCount,
+      activeAlerts: activeCount,
+    );
+  }
+
   final apiService = ref.read(apiServiceProvider);
+// ... rest
 
   // 1. Fetch Devices for the project
   final devicesResponse = await ref.watch(deviceListProvider(project.id).future);

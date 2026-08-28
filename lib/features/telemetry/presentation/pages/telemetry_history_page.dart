@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../providers/telemetry_provider.dart';
+import '../../../../core/config/app_config.dart';
 
 class TelemetryHistoryPage extends ConsumerStatefulWidget {
   final String deviceId;
@@ -77,6 +78,28 @@ class _TelemetryHistoryPageState extends ConsumerState<TelemetryHistoryPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Telemetry History'),
+        actions: [
+          if (AppConfig.isDemoMode)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.green, size: 10),
+                    SizedBox(width: 4),
+                    Text(
+                      'DEMO',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/alert_list_response.dart';
 import '../providers/alerts_provider.dart';
+import '../../../../core/config/app_config.dart';
 
 class AlertsPage extends ConsumerStatefulWidget {
   final String? deviceId;
@@ -33,6 +34,28 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Alerts History'),
+        actions: [
+          if (AppConfig.isDemoMode)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.green, size: 10),
+                    SizedBox(width: 4),
+                    Text(
+                      'DEMO',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [

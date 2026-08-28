@@ -24,6 +24,12 @@ class AppConfig {
     defaultValue: 'development',
   );
 
+  /// Whether the app is running in Demo Mode.
+  static const bool isDemoMode = bool.fromEnvironment(
+    'DEMO_MODE',
+    defaultValue: false,
+  );
+
   /// Prevents instantiation.
   AppConfig._();
 }

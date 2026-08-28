@@ -6,6 +6,7 @@ import '../../../devices/presentation/pages/device_list_page.dart';
 import '../../../alerts/presentation/pages/alerts_page.dart';
 import '../../../telemetry/presentation/pages/telemetry_history_page.dart';
 import '../../../../shared/models/project_model.dart';
+import '../../../../core/config/app_config.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -17,15 +18,47 @@ class DashboardPage extends ConsumerWidget {
 
     if (project == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('NICEGAS Dashboard')),
+        appBar: AppBar(title: const Text('BioCNG by CoreSight')),
         body: const Center(child: Text('No project selected.')),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NICEGAS Dashboard'),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'BioCNG by CoreSight',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Monitoring System',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
         actions: [
+          if (AppConfig.isDemoMode)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.green, size: 12),
+                    SizedBox(width: 4),
+                    Text(
+                      'LIVE DEMO',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -62,6 +95,7 @@ class DashboardPage extends ConsumerWidget {
                     ),
                   ],
                 ),
+// ... rest
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32.0),

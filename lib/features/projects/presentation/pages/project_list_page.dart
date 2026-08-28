@@ -4,6 +4,7 @@ import '../providers/project_provider.dart';
 import '../../../../shared/models/project_model.dart';
 import '../../../dashboard/presentation/pages/dashboard_page.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
+import '../../../../core/config/app_config.dart';
 
 /// A page displaying the list of NICEGAS projects.
 class ProjectListPage extends ConsumerWidget {
@@ -15,13 +16,32 @@ class ProjectListPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NICEGAS Projects'),
+        title: const Text('BioCNG by CoreSight'),
         actions: [
+          if (AppConfig.isDemoMode)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.green, size: 10),
+                    SizedBox(width: 4),
+                    Text(
+                      'DEMO',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.health_and_safety),
             onPressed: () {
               // Navigation to HealthPage could be added here if needed,
-              // but for now we focus on Project List.
             },
           ),
         ],

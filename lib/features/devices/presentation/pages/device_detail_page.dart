@@ -4,6 +4,7 @@ import '../providers/device_provider.dart';
 import '../../../../shared/models/device_model.dart';
 import 'package:itenice_bio_cng/features/telemetry/presentation/pages/telemetry_history_page.dart';
 import 'package:itenice_bio_cng/features/alerts/presentation/pages/alerts_page.dart';
+import '../../../../core/config/app_config.dart';
 
 /// A page displaying the metadata details of a device.
 class DeviceDetailPage extends ConsumerWidget {
@@ -21,6 +22,28 @@ class DeviceDetailPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Device Details'),
+        actions: [
+          if (AppConfig.isDemoMode)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, color: Colors.green, size: 10),
+                    SizedBox(width: 4),
+                    Text(
+                      'DEMO',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
       body: deviceAsync.when(
         data: (device) => _DeviceDetailView(device: device),
