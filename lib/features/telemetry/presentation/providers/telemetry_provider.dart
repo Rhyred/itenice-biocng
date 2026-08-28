@@ -49,7 +49,7 @@ class TelemetryNotifier extends AutoDisposeFamilyAsyncNotifier<TelemetryListResp
 
   Future<TelemetryListResponse> _fetch({required int page}) async {
     if (AppConfig.isDemoMode) {
-      final demoState = ref.watch(demoDataControllerProvider);
+      final demoState = ref.read(demoDataControllerProvider);
       return TelemetryListResponse(
         data: demoState.telemetryHistory,
         meta: TelemetryListMeta(

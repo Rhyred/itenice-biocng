@@ -1,11 +1,11 @@
 {
-    "name": "itenice_bio_cng",
-    "short_name": "itenice_bio_cng",
+    "name": "NiceGas BioCNG",
+    "short_name": "NiceGas",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "AFlutter project for BIO CNG ITENIce",
+    "background_color": "#1A1210",
+    "theme_color": "#E8650A",
+    "description": "Sistem Pemantauan Produksi Gas BioCNG Industri",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

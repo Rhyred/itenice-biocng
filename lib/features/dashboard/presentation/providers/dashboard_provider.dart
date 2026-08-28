@@ -33,67 +33,136 @@ class DashboardSummary {
   });
 }
 
-/// A provider that aggregates data for the dashboard based on the selected project.
-final dashboardDataProvider = FutureProvider.autoDispose<DashboardSummary>((ref) async {
+/// Demo mode: Provider sinkron — langsung baca dari demoState TANPA FutureProvider
+/// Tidak ada siklus loading → setiap tick demo hanya rebuild widget-nya saja
+final demoDashboardProvider = Provider.autoDispose<DashboardSummary>((ref) {
+  final project = ref.watch(selectedProjectProvider);
+  if (project == null) {
+    return DashboardSummary(
+      totalDevices: 0,
+      onlineDevices: 0,
+      offlineDevices: 0,
+      recentAlerts: [],
+      latestTelemetry: [],
+      criticalAlerts: 0,
+      warningAlerts: 0,
+      activeAlerts: 0,
+    );
+  }
+
+  final demoState = ref.watch(demoDataControllerProvider);
+
+  final activeCount = demoState.alerts
+      .where((a) => a.status.toUpperCase() == 'ACTIVE')
+      .length;
+  final criticalCount = demoState.alerts
+      .where((a) =>
+          a.status.toUpperCase() == 'ACTIVE' &&
+          a.severity.toUpperCase() == 'CRITICAL')
+      .length;
+  final warningCount = demoState.alerts
+      .where((a) =>
+          a.status.toUpperCase() == 'ACTIVE' &&
+          a.severity.toUpperCase() == 'WARNING')
+      .length;
+
+  return DashboardSummary(
+    totalDevices: demoState.devices.length,
+    onlineDevices: demoState.devices
+        .where((d) => d.status.toUpperCase() == 'ONLINE')
+        .length,
+    offlineDevices: demoState.devices
+        .where((d) => d.status.toUpperCase() == 'OFFLINE')
+        .length,
+    recentAlerts: demoState.alerts,
+    latestTelemetry: demoState.telemetryHistory.isNotEmpty
+        ? [demoState.telemetryHistory.first]
+        : [],
+    criticalAlerts: criticalCount,
+    warningAlerts: warningCount,
+    activeAlerts: activeCount,
+  );
+});
+
+/// Production mode: FutureProvider yang hanya fetch sekali per project
+/// (tidak ada watch ke provider yang berubah-ubah)
+final dashboardDataProvider =
+    FutureProvider.autoDispose<DashboardSummary>((ref) async {
   final project = ref.watch(selectedProjectProvider);
   if (project == null) {
     throw Exception('No project selected');
   }
 
+  // Demo mode: delegasikan ke provider sinkron
   if (AppConfig.isDemoMode) {
-    final demoState = ref.watch(demoDataControllerProvider);
-    
-    int activeCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE').length;
-    int criticalCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE' && a.severity.toUpperCase() == 'CRITICAL').length;
-    int warningCount = demoState.alerts.where((a) => a.status.toUpperCase() == 'ACTIVE' && a.severity.toUpperCase() == 'WARNING').length;
+    // Ambil snapshot saat ini dari demo state — TIDAK watch (biar tidak loop)
+    final demoState = ref.read(demoDataControllerProvider);
+
+    final activeCount = demoState.alerts
+        .where((a) => a.status.toUpperCase() == 'ACTIVE')
+        .length;
+    final criticalCount = demoState.alerts
+        .where((a) =>
+            a.status.toUpperCase() == 'ACTIVE' &&
+            a.severity.toUpperCase() == 'CRITICAL')
+        .length;
+    final warningCount = demoState.alerts
+        .where((a) =>
+            a.status.toUpperCase() == 'ACTIVE' &&
+            a.severity.toUpperCase() == 'WARNING')
+        .length;
 
     return DashboardSummary(
       totalDevices: demoState.devices.length,
-      onlineDevices: demoState.devices.where((d) => d.status.toUpperCase() == 'ONLINE').length,
-      offlineDevices: demoState.devices.where((d) => d.status.toUpperCase() == 'OFFLINE').length,
+      onlineDevices: demoState.devices
+          .where((d) => d.status.toUpperCase() == 'ONLINE')
+          .length,
+      offlineDevices: demoState.devices
+          .where((d) => d.status.toUpperCase() == 'OFFLINE')
+          .length,
       recentAlerts: demoState.alerts,
-      latestTelemetry: demoState.telemetryHistory.isNotEmpty ? [demoState.telemetryHistory.first] : [],
+      latestTelemetry: demoState.telemetryHistory.isNotEmpty
+          ? [demoState.telemetryHistory.first]
+          : [],
       criticalAlerts: criticalCount,
       warningAlerts: warningCount,
       activeAlerts: activeCount,
     );
   }
 
+  // ── Production API path ────────────────────────────────────────────────────
   final apiService = ref.read(apiServiceProvider);
-// ... rest
 
-  // 1. Fetch Devices for the project
-  final devicesResponse = await ref.watch(deviceListProvider(project.id).future);
+  final devicesResponse =
+      await ref.watch(deviceListProvider(project.id).future);
   final devices = devicesResponse.data;
 
-  // Calculate device status counts
   final totalDevices = devices.length;
-  final onlineDevices = devices.where((d) => d.status.toUpperCase() == 'ONLINE').length;
-  final offlineDevices = devices.where((d) => d.status.toUpperCase() == 'OFFLINE').length;
+  final onlineDevices =
+      devices.where((d) => d.status.toUpperCase() == 'ONLINE').length;
+  final offlineDevices =
+      devices.where((d) => d.status.toUpperCase() == 'OFFLINE').length;
 
-  // 2. Fetch Alerts for the devices (MVP: Aggregate from top devices or first few)
-  // Since GET /alerts?project_id is not supported, we fetch alerts for each device.
-  // To avoid too many requests, we limit to the first 5 devices for summary or 
-  // fetch recent alerts across the project if possible.
-  // For MVP, we'll try to fetch alerts for each device in parallel (limited).
-  
   List<AlertModel> allRecentAlerts = [];
   int criticalCount = 0;
   int warningCount = 0;
   int activeCount = 0;
 
-  // We only fetch for the first few devices to keep it fast for MVP summary
   final devicesToFetch = devices.take(10).toList();
-  
-  final alertFutures = devicesToFetch.map((device) => apiService.getAlerts(deviceId: device.id, limit: 5));
+
+  final alertFutures = devicesToFetch
+      .map((device) => apiService.getAlerts(deviceId: device.id, limit: 5));
   final alertResponses = await Future.wait(alertFutures);
 
   for (final response in alertResponses) {
     if (response.statusCode == 200) {
       final data = response.data['data'] as List;
-      final alerts = data.map((json) => AlertModel.fromJson(json as Map<String, dynamic>)).toList();
+      final alerts = data
+          .map((json) =>
+              AlertModel.fromJson(json as Map<String, dynamic>))
+          .toList();
       allRecentAlerts.addAll(alerts);
-      
+
       for (final alert in alerts) {
         if (alert.status.toUpperCase() == 'ACTIVE') {
           activeCount++;
@@ -107,18 +176,17 @@ final dashboardDataProvider = FutureProvider.autoDispose<DashboardSummary>((ref)
     }
   }
 
-  // 3. Fetch Latest Telemetry
-  // We'll fetch the latest telemetry for each device (first few)
   List<TelemetryModel> latestTelemetry = [];
   final now = DateTime.now();
   final startTime = now.subtract(const Duration(hours: 24));
 
-  final telemetryFutures = devicesToFetch.map((device) => apiService.getTelemetry(
-    deviceId: device.id,
-    startTime: startTime,
-    endTime: now,
-    limit: 1,
-  ));
+  final telemetryFutures = devicesToFetch.map((device) =>
+      apiService.getTelemetry(
+        deviceId: device.id,
+        startTime: startTime,
+        endTime: now,
+        limit: 1,
+      ));
 
   final telemetryResponses = await Future.wait(telemetryFutures);
 
@@ -126,7 +194,8 @@ final dashboardDataProvider = FutureProvider.autoDispose<DashboardSummary>((ref)
     if (response.statusCode == 200) {
       final data = response.data['data'] as List;
       if (data.isNotEmpty) {
-        latestTelemetry.add(TelemetryModel.fromJson(data.first as Map<String, dynamic>));
+        latestTelemetry.add(
+            TelemetryModel.fromJson(data.first as Map<String, dynamic>));
       }
     }
   }
@@ -135,7 +204,8 @@ final dashboardDataProvider = FutureProvider.autoDispose<DashboardSummary>((ref)
     totalDevices: totalDevices,
     onlineDevices: onlineDevices,
     offlineDevices: offlineDevices,
-    recentAlerts: allRecentAlerts..sort((a, b) => b.timestamp.compareTo(a.timestamp)),
+    recentAlerts:
+        allRecentAlerts..sort((a, b) => b.timestamp.compareTo(a.timestamp)),
     latestTelemetry: latestTelemetry,
     criticalAlerts: criticalCount,
     warningAlerts: warningCount,

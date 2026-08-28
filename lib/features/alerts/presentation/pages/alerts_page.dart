@@ -29,11 +29,41 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
       status: _status,
     );
 
-    final alertsAsync = ref.watch(alertsProvider(params));
+    // Demo mode: pakai Provider sinkron — tidak ada loading loop
+    // Production: pakai AsyncNotifier yang fetch dari API
+    final Widget body;
+    if (AppConfig.isDemoMode) {
+      final response = ref.watch(demoAlertsProvider(params));
+      body = response.data.isEmpty
+          ? const Center(child: Text('Belum ada alert.'))
+          : _AlertList(
+              response: response,
+              onLoadMore: () {}, // demo tidak perlu load more
+            );
+    } else {
+      final alertsAsync = ref.watch(alertsProvider(params));
+      body = alertsAsync.when(
+        data: (response) {
+          if (response.data.isEmpty) {
+            return const Center(child: Text('No alerts found.'));
+          }
+          return _AlertList(
+            response: response,
+            onLoadMore: () =>
+                ref.read(alertsProvider(params).notifier).loadMore(),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => _ErrorState(
+          error: err.toString(),
+          onRetry: () => ref.invalidate(alertsProvider(params)),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alerts History'),
+        title: const Text('Riwayat Alert'),
         actions: [
           if (AppConfig.isDemoMode)
             const Center(
@@ -65,28 +95,12 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
             onSeverityChanged: (val) => setState(() => _severity = val),
             onStatusChanged: (val) => setState(() => _status = val),
           ),
-          Expanded(
-            child: alertsAsync.when(
-              data: (response) {
-                if (response.data.isEmpty) {
-                  return const Center(child: Text('No alerts found.'));
-                }
-                return _AlertList(
-                  response: response,
-                  onLoadMore: () => ref.read(alertsProvider(params).notifier).loadMore(),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => _ErrorState(
-                error: err.toString(),
-                onRetry: () => ref.invalidate(alertsProvider(params)),
-              ),
-            ),
-          ),
+          Expanded(child: body),
         ],
       ),
     );
   }
+
 }
 
 class _FilterSection extends StatelessWidget {
