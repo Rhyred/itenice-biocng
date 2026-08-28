@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
+
+import '../config/app_config.dart';
 
 /// A provider for the [MqttService] instance.
 final mqttServiceProvider = Provider<MqttService>((ref) {
@@ -10,40 +14,152 @@ final mqttServiceProvider = Provider<MqttService>((ref) {
 /// A service that handles MQTT communication for Bio-CNG hardware connectivity.
 class MqttService {
   MqttServerClient? _client;
+  
+  final _connectionStateController = StreamController<MqttConnectionState>.broadcast();
+  Stream<MqttConnectionState> get connectionStateStream => _connectionStateController.stream;
 
-  /// Connects to the MQTT broker.
-  /// Configuration must be injected from environment variables in later phases.
-  Future<void> connect({
-    required String server,
-    required String clientId,
+  final _messageController = StreamController<MqttMessagePayload>.broadcast();
+  Stream<MqttMessagePayload> get messageStream => _messageController.stream;
+
+  MqttConnectionState get connectionState => _client?.connectionStatus?.state ?? MqttConnectionState.disconnected;
+
+  Future<bool> connect({
+    required String host,
     required int port,
+    required String username,
+    required String password,
   }) async {
-    _client = MqttServerClient.withPort(server, clientId, port);
+    if (AppConfig.isDemoMode) {
+      debugPrint('MqttService: Demo mode enabled. Skipping real MQTT connection.');
+      return false;
+    }
 
-    // Add connection settings, callbacks, and authentication here.
-    
+    if (host.isEmpty) {
+      debugPrint('MqttService: MQTT host is empty. Cannot connect.');
+      return false;
+    }
+
+    // Clean up any existing connection
+    if (_client != null) {
+      _client!.disconnect();
+      _client = null;
+    }
+
+    _client = MqttServerClient.withPort(
+      host,
+      AppConfig.mqttClientId,
+      port,
+    );
+
+    _client!.logging(on: false);
+    _client!.keepAlivePeriod = AppConfig.mqttKeepalive;
+    _client!.onDisconnected = _onDisconnected;
+    _client!.onConnected = _onConnected;
+    _client!.onSubscribed = _onSubscribed;
+    _client!.pongCallback = _pong;
+
+    final connMessage = MqttConnectMessage()
+        .withClientIdentifier(AppConfig.mqttClientId)
+        .startClean()
+        .withWillQos(MqttQos.atLeastOnce);
+
+    _client!.connectionMessage = connMessage;
+
     try {
-      await _client?.connect();
+      debugPrint('MqttService: Connecting to $host:$port...');
+      _connectionStateController.add(MqttConnectionState.connecting);
+      
+      if (username.isNotEmpty) {
+        await _client!.connect(username, password);
+      } else {
+        await _client!.connect();
+      }
     } catch (e) {
+      debugPrint('MqttService: Exception during connect - $e');
       _client?.disconnect();
-      rethrow;
+      _connectionStateController.add(MqttConnectionState.faulted);
+      return false;
+    }
+
+    if (_client!.connectionStatus!.state == MqttConnectionState.connected) {
+      debugPrint('MqttService: Connected successfully.');
+      _connectionStateController.add(MqttConnectionState.connected);
+
+      _client!.updates!.listen((List<MqttReceivedMessage<MqttMessage>> c) {
+        final recMess = c[0].payload as MqttPublishMessage;
+        final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
+        final topic = c[0].topic;
+
+        _messageController.add(MqttMessagePayload(topic: topic, payload: pt));
+      });
+      return true;
+    } else {
+      debugPrint('MqttService: Failed to connect. State: ${_client!.connectionStatus!.state}');
+      _client!.disconnect();
+      _connectionStateController.add(MqttConnectionState.faulted);
+      return false;
     }
   }
 
-  /// Disconnects from the MQTT broker.
   void disconnect() {
+    debugPrint('MqttService: Disconnecting...');
     _client?.disconnect();
+    _connectionStateController.add(MqttConnectionState.disconnected);
   }
 
-  /// Subscribes to a topic.
   void subscribe(String topic) {
-    _client?.subscribe(topic, MqttQos.atLeastOnce);
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      debugPrint('MqttService: Subscribing to $topic');
+      _client?.subscribe(topic, MqttQos.atLeastOnce);
+    }
   }
 
-  /// Publishes a message to a topic.
-  void publish(String topic, String message) {
-    final builder = MqttClientPayloadBuilder();
-    builder.addString(message);
-    _client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+  void unsubscribe(String topic) {
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      debugPrint('MqttService: Unsubscribing from $topic');
+      _client?.unsubscribe(topic);
+    }
   }
+
+  void publish(String topic, String message) {
+    if (_client?.connectionStatus?.state == MqttConnectionState.connected) {
+      final builder = MqttClientPayloadBuilder();
+      builder.addString(message);
+      _client?.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+    }
+  }
+
+  void _onConnected() {
+    debugPrint('MqttService: OnConnected callback');
+  }
+
+  void _onDisconnected() {
+    debugPrint('MqttService: OnDisconnected callback');
+    if (_client?.connectionStatus?.disconnectionOrigin == MqttDisconnectionOrigin.solicited) {
+      debugPrint('MqttService: Disconnected intentionally.');
+    } else {
+      debugPrint('MqttService: Disconnected unexpectedly.');
+      _connectionStateController.add(MqttConnectionState.disconnected);
+    }
+  }
+
+  void _onSubscribed(String topic) {
+    debugPrint('MqttService: Subscribed to $topic');
+  }
+
+  void _pong() {
+    debugPrint('MqttService: Ping response received');
+  }
+
+  void dispose() {
+    _connectionStateController.close();
+    _messageController.close();
+  }
+}
+
+class MqttMessagePayload {
+  final String topic;
+  final String payload;
+
+  MqttMessagePayload({required this.topic, required this.payload});
 }

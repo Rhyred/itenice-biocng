@@ -7,7 +7,8 @@ import '../../../alerts/presentation/pages/alerts_page.dart';
 import '../../../telemetry/presentation/pages/telemetry_history_page.dart';
 import '../../../../shared/models/project_model.dart';
 import '../../../../core/config/app_config.dart';
-
+import '../../../../core/mqtt/mqtt_provider.dart';
+import '../../../../core/mqtt/mqtt_state.dart';
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
 
@@ -39,26 +40,60 @@ class DashboardPage extends ConsumerWidget {
           ],
         ),
         actions: [
-          if (AppConfig.isDemoMode)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, color: Colors.green, size: 12),
-                    SizedBox(width: 4),
-                    Text(
-                      'LIVE DEMO',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
+          Consumer(
+            builder: (context, ref, child) {
+              final mqttState = ref.watch(mqttProvider);
+              final isConnected = mqttState.connectionStatus == MqttConnectionStatus.connected;
+              final isReconnecting = mqttState.connectionStatus == MqttConnectionStatus.reconnecting || 
+                                     mqttState.connectionStatus == MqttConnectionStatus.connecting;
+              
+              if (AppConfig.isDemoMode) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, color: Colors.green, size: 12),
+                        SizedBox(width: 4),
+                        Text(
+                          'LIVE DEMO',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                );
+              }
+
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        color: isConnected ? Colors.green : (isReconnecting ? Colors.orange : Colors.red),
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isConnected ? 'MQTT CONNECTED' : (isReconnecting ? 'RECONNECTING...' : 'DISCONNECTED'),
+                        style: TextStyle(
+                          color: isConnected ? Colors.green : (isReconnecting ? Colors.orange : Colors.red),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -75,6 +110,37 @@ class DashboardPage extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (ref.watch(mqttProvider).activeBrokerRole == BrokerRole.emergency)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange.shade900),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'EMERGENCY MODE',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade900),
+                            ),
+                            Text(
+                              'Primary edge server unavailable. Local realtime monitoring remains active.',
+                              style: TextStyle(fontSize: 12, color: Colors.orange.shade900),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               _ProjectHeader(project: project),
               const SizedBox(height: 16),
               summaryAsync.when(

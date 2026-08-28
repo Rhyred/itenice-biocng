@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/telemetry_model.dart';
+import '../../../../core/mqtt/mqtt_provider.dart';
+import '../../../../core/mqtt/mqtt_state.dart';
 
 class StatusSummaryCard extends StatelessWidget {
   final int total;
@@ -84,13 +87,26 @@ class _StatusItem extends StatelessWidget {
   }
 }
 
-class TelemetrySummaryCard extends StatelessWidget {
+class TelemetrySummaryCard extends ConsumerWidget {
   final List<TelemetryModel> telemetry;
 
   const TelemetrySummaryCard({super.key, required this.telemetry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mqttState = ref.watch(mqttProvider);
+    
+    // Combine baseline REST data with real-time MQTT data
+    final displayedTelemetry = telemetry.map((restTelemetry) {
+      final deviceId = restTelemetry.deviceId;
+      final component = restTelemetry.component ?? 'default'; // Fallback if no component
+      final key = '$deviceId:$component';
+      
+      // Overlay with MQTT data if available
+      final mqttTelemetry = mqttState.realtimeTelemetry[key];
+      return mqttTelemetry ?? restTelemetry;
+    }).toList();
+
     return Card(
       elevation: 4,
       shadowColor: Colors.blue.withValues(alpha: 0.1),
@@ -111,7 +127,7 @@ class TelemetrySummaryCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 20),
-            if (telemetry.isEmpty)
+            if (displayedTelemetry.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
@@ -119,7 +135,14 @@ class TelemetrySummaryCard extends StatelessWidget {
                 ),
               )
             else
-              ...telemetry.take(1).map((t) => _TelemetryGrid(telemetry: t)),
+              ...displayedTelemetry.take(1).map((t) {
+                final deviceId = t.deviceId;
+                final component = t.component ?? 'default';
+                final key = '$deviceId:$component';
+                final isLive = mqttState.realtimeTelemetry.containsKey(key) && 
+                               mqttState.connectionStatus == MqttConnectionStatus.connected;
+                return _TelemetryGrid(telemetry: t, isLive: isLive);
+              }),
           ],
         ),
       ),
@@ -129,8 +152,9 @@ class TelemetrySummaryCard extends StatelessWidget {
 
 class _TelemetryGrid extends StatelessWidget {
   final TelemetryModel telemetry;
+  final bool isLive;
 
-  const _TelemetryGrid({required this.telemetry});
+  const _TelemetryGrid({required this.telemetry, this.isLive = false});
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +169,20 @@ class _TelemetryGrid extends StatelessWidget {
               'Device: ${telemetry.deviceId ?? 'Unknown'}',
               style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: Colors.grey.shade600),
             ),
+            if (isLive) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                ),
+              )
+            ],
             const Spacer(),
             Text(
               'Last update: ${telemetry.timestamp.hour}:${telemetry.timestamp.minute.toString().padLeft(2, '0')}:${telemetry.timestamp.second.toString().padLeft(2, '0')}',

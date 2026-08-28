@@ -5,6 +5,8 @@ import '../../../../shared/models/device_model.dart';
 import 'package:itenice_bio_cng/features/telemetry/presentation/pages/telemetry_history_page.dart';
 import 'package:itenice_bio_cng/features/alerts/presentation/pages/alerts_page.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/mqtt/mqtt_provider.dart';
+import '../../../../core/mqtt/mqtt_state.dart';
 
 /// A page displaying the metadata details of a device.
 class DeviceDetailPage extends ConsumerWidget {
@@ -57,13 +59,23 @@ class DeviceDetailPage extends ConsumerWidget {
   }
 }
 
-class _DeviceDetailView extends StatelessWidget {
+class _DeviceDetailView extends ConsumerWidget {
   final DeviceModel device;
 
   const _DeviceDetailView({required this.device});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mqttState = ref.watch(mqttProvider);
+    
+    // Override status with MQTT realtime status if available
+    final realtimeStatus = mqttState.deviceStatus[device.id];
+    final displayStatus = realtimeStatus ?? device.status;
+
+    // Find realtime telemetry for this device
+    final deviceTelemetryKeys = mqttState.realtimeTelemetry.keys.where((k) => k.startsWith('${device.id}:'));
+    final hasRealtimeTelemetry = deviceTelemetryKeys.isNotEmpty;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -80,14 +92,69 @@ class _DeviceDetailView extends StatelessWidget {
             children: [
               _DetailItem(label: 'Device ID', value: device.id),
               _DetailItem(label: 'Type', value: device.type),
-              _DetailItem(label: 'Status', value: device.status, isStatus: true),
+              _DetailItem(label: 'Status', value: displayStatus, isStatus: true),
               _DetailItem(label: 'Firmware', value: device.firmware ?? 'Unknown'),
               _DetailItem(
                 label: 'Last Seen',
                 value: device.lastSeen != null ? _formatDate(device.lastSeen!) : 'Never',
               ),
+              _DetailItem(
+                label: 'MQTT Broker',
+                value: mqttState.connectionStatus == MqttConnectionStatus.connected ? 'CONNECTED' : 'DISCONNECTED',
+                isStatus: true,
+              ),
             ],
           ),
+          if (hasRealtimeTelemetry) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Realtime Telemetry',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            ...deviceTelemetryKeys.map((key) {
+              final t = mqttState.realtimeTelemetry[key]!;
+              return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.green.shade300, width: 2),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Component: ${t.component ?? 'default'}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Last update: ${t.timestamp.hour}:${t.timestamp.minute.toString().padLeft(2, '0')}:${t.timestamp.second.toString().padLeft(2, '0')}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      const SizedBox(height: 12),
+                      ...t.metrics.entries.map((e) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(e.key.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: Colors.grey)),
+                            Text('${e.value.value.toStringAsFixed(2)} ${e.value.unit}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      )),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
           const SizedBox(height: 24),
           const Text(
             'Actions',

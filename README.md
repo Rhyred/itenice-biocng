@@ -51,12 +51,16 @@ flutter build apk \
 - [x] Basic Folder Structure (Core/Features/Shared)
 - [x] Initial MqttService & ApiService Boilerplate
 
-### Phase 2: Local Infrastructure & Backend Foundation (In Progress)
-- [ ] Secure Storage implementation for JWT
-- [ ] Dio Interceptors (Auth & Logging)
-- [ ] MQTT Auto-reconnect & Resiliency logic
-- [ ] Environment-based configuration management
-- [ ] Data Modeling with Freezed/JSON Serializable
+### Phase 3: Dashboard & MVP Demo (Completed)
+- [x] Project & Device Management
+- [x] Historical Telemetry Visualization
+- [x] Alerts & Notifications
+- [x] Pitch Demo Mode
+
+### Phase 4: IoT Integration & MQTT Failover (In Progress)
+- [ ] Phase 4.1: MQTT Architecture & Telemetry Contract
+- [ ] Phase 4.2: ESP32 Firmware Implementation
+- [ ] Phase 4.3: Flutter Realtime Failover Logic
 
 ---
 *Developed for BIO CNG ITENIce System.*
