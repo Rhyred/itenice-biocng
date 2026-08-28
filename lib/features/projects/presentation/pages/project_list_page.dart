@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/project_provider.dart';
 import '../../../../shared/models/project_model.dart';
-import '../../../dashboard/presentation/pages/dashboard_page.dart';
+import '../../../shell/main_shell_page.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/theme/app_theme.dart';
 
 /// A page displaying the list of NICEGAS projects.
 class ProjectListPage extends ConsumerWidget {
@@ -16,34 +17,32 @@ class ProjectListPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BioCNG by CoreSight'),
+        title: const Text('NiceGas BioCNG'),
         actions: [
           if (AppConfig.isDemoMode)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, color: Colors.green, size: 10),
-                    SizedBox(width: 4),
-                    Text(
-                      'DEMO',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.statusOptimal.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.statusOptimal.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.circle, color: AppTheme.statusOptimal, size: 8),
+                  SizedBox(width: 5),
+                  Text(
+                    'DEMO',
+                    style: TextStyle(
+                      color: AppTheme.statusOptimal,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.health_and_safety),
-            onPressed: () {
-              // Navigation to HealthPage could be added here if needed,
-            },
-          ),
         ],
       ),
       body: RefreshIndicator(
@@ -73,45 +72,74 @@ class _ProjectList extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: projects.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final project = projects[index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-              child: Icon(Icons.factory_outlined, color: Theme.of(context).primaryColor),
+        return GestureDetector(
+          onTap: () {
+            ref.read(selectedProjectProvider.notifier).state = project;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const MainShellPage(),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+              border: Border.all(color: AppTheme.borderColor),
             ),
-            title: Text(
-              project.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            subtitle: Row(
+            child: Row(
               children: [
-                const Icon(Icons.location_on_outlined, size: 14, color: Colors.grey),
-                const SizedBox(width: 4),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.factory_rounded,
+                      color: AppTheme.primary, size: 24),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    project.location,
-                    style: const TextStyle(color: Colors.grey),
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined,
+                              size: 13, color: AppTheme.textSecondary),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              project.location,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.textSecondary),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppTheme.textSecondary),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              ref.read(selectedProjectProvider.notifier).state = project;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const DashboardPage(),
-                ),
-              );
-            },
           ),
         );
       },

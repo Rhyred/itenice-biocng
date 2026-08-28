@@ -8,7 +8,7 @@ import '../../../../core/demo/demo_data_controller.dart';
 /// A provider that fetches the device list for a specific project.
 final deviceListProvider = FutureProvider.autoDispose.family<DeviceListResponse, String?>((ref, projectId) async {
   if (AppConfig.isDemoMode) {
-    final demoState = ref.watch(demoDataControllerProvider);
+    final demoState = ref.read(demoDataControllerProvider);
     return DeviceListResponse(
       data: demoState.devices,
       meta: const DeviceListMeta(
@@ -33,7 +33,7 @@ final deviceListProvider = FutureProvider.autoDispose.family<DeviceListResponse,
 /// A provider that fetches a single device by its ID.
 final deviceDetailProvider = FutureProvider.autoDispose.family<DeviceModel, String>((ref, deviceId) async {
   if (AppConfig.isDemoMode) {
-    final demoState = ref.watch(demoDataControllerProvider);
+    final demoState = ref.read(demoDataControllerProvider);
     return demoState.devices.firstWhere(
       (d) => d.id == deviceId,
       orElse: () => throw Exception('Device not found in demo data'),
