@@ -37,9 +37,6 @@ dependencies:
   flutter_riverpod: ^2.5.1
   dio: ^5.7.0
   mqtt_client: ^10.3.0
-<<<<<<< HEAD
-  freezed_annotation: ^3.1.0
-=======
   # Local credential store (SQLite-backed on native via Hive FFI, IndexedDB on web)
   hive: ^2.2.3
   hive_flutter: ^1.1.0
@@ -47,7 +44,6 @@ dependencies:
   fl_chart: ^0.69.0
   # Password hashing
   crypto: ^3.0.3
->>>>>>> new_ui
 
 dev_dependencies:
   flutter_test:
