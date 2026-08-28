@@ -1,9 +1,0 @@
-- [ ] Create `AlertListResponse` model
-- [ ] Update `ApiService` with `getAlerts` method
-- [ ] Implement `AlertsProvider`
-- [ ] Create `AlertsPage` UI
-- [ ] Add navigation from `DeviceDetailPage` to `AlertsPage`
-- [ ] Implement filters in `AlertsPage`
-- [ ] Implement "Load More" pagination in `AlertsPage`
-- [ ] Add tests for Alerts feature
-- [ ] Verify implementation with `flutter analyze` and `flutter test`
