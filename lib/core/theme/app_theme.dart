@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 
-/// Design tokens terpusat sesuai PRD §2 — NiceGas BioCNG
+/// Design tokens terpusat — BioCNG Plant Alpha
 class AppTheme {
   AppTheme._();
 
   // ── Color tokens ──────────────────────────────────────────────
-  /// Warna utama: Orange energetik
-  static const Color primary = Color(0xFFE8650A);
-  static const Color primaryLight = Color(0xFFFFF3EB);
-  static const Color primaryDark = Color(0xFFBF4F04);
+  /// Warna utama: Orange (Industrial / Safety)
+  static const Color primary = Color(0xFFEA580C); // Orange 600
+  static const Color primaryLight = Color(0xFFFFF7ED); // Orange 50
+  static const Color primaryDark = Color(0xFFC2410C); // Orange 700
 
-  static const Color background = Color(0xFFF7F4F1);
+  static const Color background = Color(0xFFF8FAFC); // Slate 50
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color borderColor = Color(0xFFEDE8E3);
+  static const Color borderColor = Color(0xFFE2E8F0); // Slate 200
 
-  static const Color statusOptimal = Color(0xFF22C55E);
-  static const Color statusWarning = Color(0xFFF59E0B);
-  static const Color statusCritical = Color(0xFFEF4444);
+  static const Color statusOptimal = Color(0xFF10B981); // Emerald 500
+  static const Color statusWarning = Color(0xFFF59E0B); // Amber 500
+  static const Color statusCritical = Color(0xFFEF4444); // Red 500
 
-  static const Color textPrimary = Color(0xFF1C1A18);
-  static const Color textSecondary = Color(0xFF8A8078);
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF64748B); // Slate 500
 
   // ── Shape ─────────────────────────────────────────────────────
-  static const double cardRadius = 16.0;
+  static const double cardRadius = 8.0; // Lebih kotak, industrial look
 
   // ── ThemeData ─────────────────────────────────────────────────
   static ThemeData get light {
@@ -31,6 +31,7 @@ class AppTheme {
       primary: primary,
       surface: surface,
       onSurface: textPrimary,
+      error: statusCritical,
     );
 
     return ThemeData(
@@ -39,7 +40,7 @@ class AppTheme {
       scaffoldBackgroundColor: background,
       fontFamily: 'Inter',
 
-      // AppBar: flat, background sama dengan scaffold
+      // AppBar: flat, clean
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         surfaceTintColor: Colors.transparent,
@@ -48,7 +49,7 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: textPrimary,
-          fontSize: 20,
+          fontSize: 18,
           fontWeight: FontWeight.w700,
           fontFamily: 'Inter',
         ),
@@ -56,18 +57,18 @@ class AppTheme {
         actionsIconTheme: IconThemeData(color: textPrimary),
       ),
 
-      // Card: flat, border tipis, radius 16
+      // Card: flat, border tipis, radius 8
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(cardRadius),
-          side: const BorderSide(color: borderColor),
+          side: const BorderSide(color: borderColor, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
 
-      // BottomNavigationBar
+      // BottomNavigationBar: minimal
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: surface,
         selectedItemColor: primary,
@@ -75,7 +76,9 @@ class AppTheme {
         showSelectedLabels: true,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
+        selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
 
       // ElevatedButton
@@ -83,32 +86,41 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(cardRadius),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
 
       // Input decoration
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFFF0EDE8),
+        fillColor: surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(cardRadius),
+          borderSide: const BorderSide(color: borderColor),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(cardRadius),
+          borderSide: const BorderSide(color: borderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(cardRadius),
+          borderSide: const BorderSide(color: primary, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
 
       // Chip
       chipTheme: ChipThemeData(
-        backgroundColor: background,
-        selectedColor: primary.withValues(alpha: 0.15),
-        labelStyle: const TextStyle(fontSize: 13, fontFamily: 'Inter'),
+        backgroundColor: surface,
+        selectedColor: primary.withValues(alpha: 0.1),
+        labelStyle: const TextStyle(fontSize: 13, fontFamily: 'Inter', fontWeight: FontWeight.w500),
+        secondaryLabelStyle: const TextStyle(fontSize: 13, fontFamily: 'Inter', fontWeight: FontWeight.w600, color: primary),
         side: const BorderSide(color: borderColor),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cardRadius)),
       ),
     );
   }
