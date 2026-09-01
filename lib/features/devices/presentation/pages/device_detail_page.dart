@@ -4,6 +4,7 @@ import '../providers/device_provider.dart';
 import '../../../../shared/models/device_model.dart';
 import 'package:itenice_bio_cng/features/telemetry/presentation/pages/telemetry_history_page.dart';
 import 'package:itenice_bio_cng/features/alerts/presentation/pages/alerts_page.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/mqtt/mqtt_provider.dart';
 import '../../../../core/mqtt/mqtt_state.dart';
@@ -23,7 +24,7 @@ class DeviceDetailPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Device Details'),
+        title: const Text('Detail Perangkat'),
         actions: [
           if (AppConfig.isDemoMode)
             const Center(
@@ -31,12 +32,12 @@ class DeviceDetailPage extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    Icon(Icons.circle, color: Colors.green, size: 10),
+                    Icon(Icons.circle, color: AppTheme.statusOptimal, size: 10),
                     SizedBox(width: 4),
                     Text(
                       'DEMO',
                       style: TextStyle(
-                        color: Colors.green,
+                        color: AppTheme.statusOptimal,
                         fontWeight: FontWeight.bold,
                         fontSize: 10,
                       ),
@@ -84,22 +85,22 @@ class _DeviceDetailView extends ConsumerWidget {
           _HeaderSection(device: device),
           const SizedBox(height: 24),
           const Text(
-            'Information',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'Informasi Perangkat',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 12),
           _DetailCard(
             children: [
-              _DetailItem(label: 'Device ID', value: device.id),
-              _DetailItem(label: 'Type', value: device.type),
+              _DetailItem(label: 'ID Perangkat', value: device.id),
+              _DetailItem(label: 'Tipe', value: device.type),
               _DetailItem(label: 'Status', value: displayStatus, isStatus: true),
               _DetailItem(label: 'Firmware', value: device.firmware ?? 'Unknown'),
               _DetailItem(
-                label: 'Last Seen',
-                value: device.lastSeen != null ? _formatDate(device.lastSeen!) : 'Never',
+                label: 'Terakhir Terlihat',
+                value: device.lastSeen != null ? _formatDate(device.lastSeen!) : 'Tidak pernah',
               ),
               _DetailItem(
-                label: 'MQTT Broker',
+                label: 'Broker MQTT',
                 value: mqttState.connectionStatus == MqttConnectionStatus.connected ? 'CONNECTED' : 'DISCONNECTED',
                 isStatus: true,
               ),
@@ -108,57 +109,58 @@ class _DeviceDetailView extends ConsumerWidget {
           if (hasRealtimeTelemetry) ...[
             const SizedBox(height: 24),
             const Text(
-              'Realtime Telemetry',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              'Telemetri Real-time',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 12),
             ...deviceTelemetryKeys.map((key) {
               final t = mqttState.realtimeTelemetry[key]!;
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.green.shade300, width: 2),
+              final isLive = mqttState.connectionStatus == MqttConnectionStatus.connected || AppConfig.isDemoMode;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                  border: Border.all(color: AppTheme.borderColor),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Component: ${t.component ?? 'default'}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Komponen: ${t.component ?? 'default'}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                        if (isLive)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                            decoration: BoxDecoration(color: AppTheme.statusCritical, borderRadius: BorderRadius.circular(4)),
                             child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                           ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Update: ${t.timestamp.hour}:${t.timestamp.minute.toString().padLeft(2, '0')}:${t.timestamp.second.toString().padLeft(2, '0')}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 12),
+                    ...t.metrics.entries.map((e) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(e.key.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                          Text('${e.value.value % 1 == 0 ? e.value.value.toInt() : e.value.value.toStringAsFixed(2)} ${e.value.unit}', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Text('Last update: ${t.timestamp.hour}:${t.timestamp.minute.toString().padLeft(2, '0')}:${t.timestamp.second.toString().padLeft(2, '0')}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      const SizedBox(height: 12),
-                      ...t.metrics.entries.map((e) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(e.key.replaceAll('_', ' ').toUpperCase(), style: const TextStyle(color: Colors.grey)),
-                            Text('${e.value.value.toStringAsFixed(2)} ${e.value.unit}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      )),
-                    ],
-                  ),
+                    )),
+                  ],
                 ),
               );
             }),
           ],
           const SizedBox(height: 24),
           const Text(
-            'Actions',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'Aksi',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -173,7 +175,7 @@ class _DeviceDetailView extends ConsumerWidget {
                 );
               },
               icon: const Icon(Icons.history),
-              label: const Text('View Telemetry History'),
+              label: const Text('Lihat Riwayat Telemetri'),
             ),
           ),
           const SizedBox(height: 12),
@@ -189,7 +191,7 @@ class _DeviceDetailView extends ConsumerWidget {
                 );
               },
               icon: const Icon(Icons.notifications_outlined),
-              label: const Text('View Alerts'),
+              label: const Text('Lihat Peringatan'),
             ),
           ),
         ],
@@ -248,17 +250,15 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppTheme.borderColor),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: children,
-        ),
+      child: Column(
+        children: children,
       ),
     );
   }
@@ -315,13 +315,13 @@ class _DetailItem extends StatelessWidget {
   }
 
   Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'ONLINE':
-        return Colors.green;
-      case 'OFFLINE':
-        return Colors.red;
-      default:
-        return Colors.orange;
+    final s = status.toUpperCase();
+    if (s == 'ONLINE' || s == 'CONNECTED') {
+      return AppTheme.statusOptimal;
+    } else if (s == 'OFFLINE' || s == 'DISCONNECTED') {
+      return AppTheme.statusCritical;
+    } else {
+      return AppTheme.statusWarning;
     }
   }
 }

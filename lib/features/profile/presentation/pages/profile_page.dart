@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:itenice_bio_cng/features/connection/presentation/pages/connection_setup_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -12,6 +13,7 @@ class ProfilePage extends ConsumerWidget {
     final project = ref.watch(selectedProjectProvider);
     final auth = ref.watch(authProvider);
     final user = auth.user;
+    final isLocalMonitoring = auth.isLocalMonitoring;
 
     return Scaffold(
       appBar: AppBar(
@@ -48,7 +50,8 @@ class ProfilePage extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.25),
+                          color: (isLocalMonitoring ? AppTheme.statusWarning : AppTheme.primary)
+                              .withValues(alpha: 0.25),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -64,7 +67,9 @@ class ProfilePage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    user?.displayName ?? 'Operator Lapangan',
+                    isLocalMonitoring
+                        ? 'Local Monitor'
+                        : (user?.displayName ?? 'Operator Lapangan'),
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
@@ -72,31 +77,39 @@ class ProfilePage extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  if (user != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        user.role.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.primary,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (isLocalMonitoring ? AppTheme.statusWarning : AppTheme.primary)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isLocalMonitoring
+                          ? 'LOCAL MONITORING MODE'
+                          : (user?.role.toUpperCase() ?? 'OPERATOR'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: isLocalMonitoring ? AppTheme.statusWarning : AppTheme.primary,
                       ),
                     ),
+                  ),
                   const SizedBox(height: 8),
-                  if (project != null)
+                  if (isLocalMonitoring)
+                    const Text(
+                      'Tanpa Akun • Hanya Telemetri Emergency MQTT',
+                      style: TextStyle(
+                          fontSize: 12, color: AppTheme.textSecondary),
+                    )
+                  else if (project != null)
                     Text(
                       project.name,
                       style: const TextStyle(
                           fontSize: 13, color: AppTheme.textSecondary),
                     ),
-                  if (project != null)
+                  if (!isLocalMonitoring && project != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Row(
@@ -129,19 +142,30 @@ class ProfilePage extends ConsumerWidget {
             _ProfileMenuItem(
               icon: Icons.settings_ethernet_rounded,
               label: 'Pengaturan Koneksi',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        Text('Pengaturan koneksi akan tersedia di iterasi berikutnya.')),
-              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ConnectionSetupPage(isEditing: true),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 8),
-            _ProfileMenuItem(
-              icon: Icons.logout_rounded,
-              label: 'Keluar',
-              isDestructive: true,
-              onTap: () => _showLogoutDialog(context, ref),
-            ),
+            if (isLocalMonitoring)
+              _ProfileMenuItem(
+                icon: Icons.login_rounded,
+                label: 'Masuk Akun Operator (Sign in)',
+                isDestructive: false,
+                onTap: () => ref.read(authProvider.notifier).switchToLogin(),
+              )
+            else
+              _ProfileMenuItem(
+                icon: Icons.logout_rounded,
+                label: 'Keluar',
+                isDestructive: true,
+                onTap: () => _showLogoutDialog(context, ref),
+              ),
           ],
         ),
       ),

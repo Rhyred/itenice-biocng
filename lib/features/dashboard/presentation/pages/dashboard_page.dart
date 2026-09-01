@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/app_config.dart';
-import '../../../../core/demo/demo_data_controller.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_charts.dart';
 import '../../../alerts/presentation/pages/alerts_page.dart';
@@ -11,6 +10,8 @@ import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../../../shell/main_shell_page.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/mqtt/mqtt_provider.dart';
+import '../../../../core/mqtt/mqtt_state.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -81,6 +82,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ],
         ),
         actions: [
+          const _BrokerStatusIndicator(),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => Navigator.push(
@@ -88,11 +90,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               MaterialPageRoute(builder: (_) => const AlertsPage()),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Logout',
-            onPressed: () => _confirmLogout(context, ref),
-          ),
+          if (ref.watch(authProvider).isLocalMonitoring)
+            IconButton(
+              icon: const Icon(Icons.login_rounded),
+              tooltip: 'Sign in / Masuk Akun Operator',
+              onPressed: () => ref.read(authProvider.notifier).switchToLogin(),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Logout',
+              onPressed: () => _confirmLogout(context, ref),
+            ),
         ],
       ),
       body: summaryAsync.when(
@@ -112,10 +121,36 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     ProjectModel project,
     DashboardSummary summary,
   ) {
-    // Ambil demo state untuk charts (sinkron, tidak re-trigger loading)
-    final demoState = AppConfig.isDemoMode
-        ? ref.watch(demoDataControllerProvider)
+    // MQTT Overlay for realtime telemetry
+    final mqttState = ref.watch(mqttProvider);
+    
+    // Create a merged telemetry list for the UI
+    final mergedLatestTelemetry = summary.latestTelemetry.map((restT) {
+      final key = '${restT.deviceId}:${restT.component}';
+      final liveT = mqttState.realtimeTelemetry[key];
+      return liveT ?? restT;
+    }).toList();
+
+    // Create a merged summary for the UI
+    final mergedSummary = DashboardSummary(
+      totalDevices: summary.totalDevices,
+      onlineDevices: summary.onlineDevices,
+      offlineDevices: summary.offlineDevices,
+      recentAlerts: summary.recentAlerts,
+      latestTelemetry: mergedLatestTelemetry,
+      telemetryHistory: summary.telemetryHistory,
+      criticalAlerts: summary.criticalAlerts,
+      warningAlerts: summary.warningAlerts,
+      activeAlerts: summary.activeAlerts,
+    );
+
+    final mainDeviceId = mergedSummary.telemetryHistory.isNotEmpty 
+        ? mergedSummary.telemetryHistory.first.deviceId 
         : null;
+    final isChartsLive = mainDeviceId != null && 
+        mqttState.realtimeTelemetry.keys.any((k) => k.startsWith('$mainDeviceId:'));
+
+    final auth = ref.watch(authProvider);
 
     return Stack(
       children: [
@@ -127,38 +162,45 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (auth.isLocalMonitoring) ...[
+                  _LocalMonitoringBanner(
+                    connectionStatus: mqttState.connectionStatus,
+                    onSignIn: () => ref.read(authProvider.notifier).switchToLogin(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // 1. Banner Peringatan
-                if (summary.criticalAlerts > 0 || summary.warningAlerts > 0)
-                  _AlertBanner(summary: summary),
-                if (summary.criticalAlerts > 0 || summary.warningAlerts > 0)
+                if (mergedSummary.criticalAlerts > 0 || mergedSummary.warningAlerts > 0)
+                  _AlertBanner(summary: mergedSummary),
+                if (mergedSummary.criticalAlerts > 0 || mergedSummary.warningAlerts > 0)
                   const SizedBox(height: 12),
 
                 // 2. Status Sistem Utama
-                _SystemStatusCard(summary: summary),
+                _SystemStatusCard(summary: mergedSummary),
                 const SizedBox(height: 12),
 
                 // 3. Charts Visualisasi Industri
-                if (demoState != null) ...[  
-                  DashboardChartsSection(
-                    demoState: demoState,
-                    onlineDevices: summary.onlineDevices,
-                    offlineDevices: summary.offlineDevices,
-                    totalDevices: summary.totalDevices,
-                  ),
-                  const SizedBox(height: 4),
-                ],
+                DashboardChartsSection(
+                  history: mergedSummary.telemetryHistory,
+                  onlineDevices: mergedSummary.onlineDevices,
+                  offlineDevices: mergedSummary.offlineDevices,
+                  totalDevices: mergedSummary.totalDevices,
+                  isLive: isChartsLive,
+                ),
+                const SizedBox(height: 4),
 
                 // 4. AI Greeting Bar
                 _AiGreetingBar(
                   onTap: () =>
                       ref.read(shellTabProvider.notifier).state = 1,
-                  summary: summary,
+                  summary: mergedSummary,
                 ),
                 const SizedBox(height: 12),
 
                 // 5. Sensor Node Digital Twin Explorer
                 _DigitalTwinExplorer(
-                  summary: summary,
+                  summary: mergedSummary,
                   selectedNodeIndex: _selectedNodeIndex,
                   nodeLabels: _nodeLabels,
                   onNodeSelected: (i) =>
@@ -167,7 +209,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 const SizedBox(height: 12),
 
                 // 6. Riwayat Log
-                _RiwayatLog(alerts: summary.recentAlerts),
+                _RiwayatLog(alerts: mergedSummary.recentAlerts),
                 const SizedBox(height: 12),
               ],
             ),
@@ -451,7 +493,7 @@ class _AiGreetingBar extends StatelessWidget {
 }
 
 /// 4. Sensor Node Digital Twin Explorer
-class _DigitalTwinExplorer extends StatelessWidget {
+class _DigitalTwinExplorer extends ConsumerWidget {
   final DashboardSummary summary;
   final int selectedNodeIndex;
   final List<String> nodeLabels;
@@ -465,7 +507,7 @@ class _DigitalTwinExplorer extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Ambil telemetry sesuai node (index fallback)
     final telemetry = summary.latestTelemetry.isNotEmpty
         ? (selectedNodeIndex < summary.latestTelemetry.length
@@ -486,7 +528,7 @@ class _DigitalTwinExplorer extends StatelessWidget {
         break;
       }
     }
-    matchedTelemetry ??= telemetry;
+    final displayTelemetry = matchedTelemetry ?? telemetry;
 
     return _AppCard(
       padding: EdgeInsets.zero,
@@ -494,16 +536,27 @@ class _DigitalTwinExplorer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
-            child: Text(
-              'SENSOR NODE DIGITAL TWIN EXPLORER',
-              style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 0.7,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textSecondary,
-              ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'SENSOR NODE DIGITAL TWIN EXPLORER',
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 0.7,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                if (displayTelemetry != null && (AppConfig.isDemoMode || ref.watch(mqttProvider.select((s) => s.realtimeTelemetry.containsKey('${displayTelemetry.deviceId}:${displayTelemetry.component}')))))
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: AppTheme.statusCritical, borderRadius: BorderRadius.circular(4)),
+                    child: const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                  ),
+              ],
             ),
           ),
 
@@ -514,7 +567,7 @@ class _DigitalTwinExplorer extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: nodeLabels.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, index) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
                 final selected = i == selectedNodeIndex;
                 return GestureDetector(
@@ -860,29 +913,6 @@ class _AppCard extends StatelessWidget {
   }
 }
 
-/// Drawer menu item
-class _DrawerItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _DrawerItem(
-      {required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: AppTheme.primary, size: 22),
-      title: Text(label,
-          style: const TextStyle(
-              color: AppTheme.textPrimary, fontWeight: FontWeight.w500)),
-      trailing:
-          const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-      onTap: onTap,
-    );
-  }
-}
-
 /// Format waktu relatif
 String _relativeTime(DateTime dt) {
   final diff = DateTime.now().difference(dt);
@@ -890,4 +920,140 @@ String _relativeTime(DateTime dt) {
   if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';
   if (diff.inHours < 24) return '${diff.inHours} jam lalu';
   return '${diff.inDays} hari lalu';
+}
+
+class _LocalMonitoringBanner extends StatelessWidget {
+  final MqttConnectionStatus connectionStatus;
+  final VoidCallback onSignIn;
+
+  const _LocalMonitoringBanner({
+    required this.connectionStatus,
+    required this.onSignIn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnected = connectionStatus == MqttConnectionStatus.connected;
+    final color = isConnected ? AppTheme.statusWarning : AppTheme.statusCritical;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isConnected ? Icons.monitor_heart_rounded : Icons.signal_cellular_off_rounded,
+            color: color,
+            size: 22,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'LOCAL MONITORING MODE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isConnected
+                      ? 'EMERGENCY MQTT CONNECTED\nBackend unavailable / Unauthenticated'
+                      : 'Emergency monitoring unavailable. Reconnecting...',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: color.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onSignIn,
+            style: TextButton.styleFrom(
+              foregroundColor: color,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+            child: const Text('Sign in', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrokerStatusIndicator extends ConsumerWidget {
+  const _BrokerStatusIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (AppConfig.isDemoMode) {
+      return Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'DEMO',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.primary,
+          ),
+        ),
+      );
+    }
+
+    final mqttState = ref.watch(mqttProvider);
+    final isEmergency = mqttState.activeBrokerRole == BrokerRole.emergency;
+    final isConnected = mqttState.connectionStatus == MqttConnectionStatus.connected;
+    
+    final color = isConnected 
+        ? (isEmergency ? AppTheme.statusWarning : AppTheme.statusOptimal)
+        : AppTheme.statusCritical;
+    
+    final label = isConnected 
+        ? (isEmergency ? 'EMERGENCY' : 'PRIMARY')
+        : 'DISCONNECTED';
+
+    return Tooltip(
+      message: 'Broker: ${isEmergency ? "Emergency" : "Primary"}\nStatus: ${mqttState.connectionStatus.name}',
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.circle, size: 8, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

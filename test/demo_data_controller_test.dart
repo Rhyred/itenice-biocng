@@ -21,7 +21,7 @@ void main() {
       addTearDown(container.dispose);
       
       // Listen to the provider to keep it alive (since it's autoDispose)
-      final sub = container.listen(demoDataControllerProvider, (_, __) {});
+      final sub = container.listen(demoDataControllerProvider, (prev, next) {});
       
       final initialState = container.read(demoDataControllerProvider);
       

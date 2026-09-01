@@ -4,9 +4,24 @@ import '../../../../shared/models/device_list_response.dart';
 import '../../../../shared/models/device_model.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/demo/demo_data_controller.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// A provider that fetches the device list for a specific project.
 final deviceListProvider = FutureProvider.autoDispose.family<DeviceListResponse, String?>((ref, projectId) async {
+  final auth = ref.watch(authProvider);
+
+  if (auth.isLocalMonitoring) {
+    return const DeviceListResponse(
+      data: [],
+      meta: DeviceListMeta(
+        totalCount: 0,
+        currentPage: 1,
+        limit: 10,
+        totalPages: 1,
+      ),
+    );
+  }
+
   if (AppConfig.isDemoMode) {
     final demoState = ref.read(demoDataControllerProvider);
     return DeviceListResponse(
@@ -32,6 +47,17 @@ final deviceListProvider = FutureProvider.autoDispose.family<DeviceListResponse,
 
 /// A provider that fetches a single device by its ID.
 final deviceDetailProvider = FutureProvider.autoDispose.family<DeviceModel, String>((ref, deviceId) async {
+  final auth = ref.read(authProvider);
+
+  if (auth.isLocalMonitoring) {
+    return DeviceModel(
+      id: deviceId,
+      name: 'Local Device $deviceId',
+      type: 'sensor',
+      status: 'ONLINE',
+    );
+  }
+
   if (AppConfig.isDemoMode) {
     final demoState = ref.read(demoDataControllerProvider);
     return demoState.devices.firstWhere(

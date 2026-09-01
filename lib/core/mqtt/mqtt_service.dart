@@ -23,6 +23,42 @@ class MqttService {
 
   MqttConnectionState get connectionState => _client?.connectionStatus?.state ?? MqttConnectionState.disconnected;
 
+  /// Performs a temporary connection test against a target MQTT broker.
+  static Future<bool> testMqttConnection({
+    required String host,
+    required int port,
+    String username = '',
+    String password = '',
+  }) async {
+    if (host.trim().isEmpty) return false;
+    final testClient = MqttServerClient.withPort(
+      host.trim(),
+      'nicegas_test_${DateTime.now().millisecondsSinceEpoch}',
+      port,
+    );
+    testClient.logging(on: false);
+    testClient.keepAlivePeriod = 10;
+
+    try {
+      if (username.isNotEmpty) {
+        await testClient.connect(username, password);
+      } else {
+        await testClient.connect();
+      }
+
+      final isConnected =
+          testClient.connectionStatus?.state == MqttConnectionState.connected;
+      if (isConnected) {
+        testClient.disconnect();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('MqttService: Connection test failed: $e');
+      return false;
+    }
+  }
+
   Future<bool> connect({
     required String host,
     required int port,

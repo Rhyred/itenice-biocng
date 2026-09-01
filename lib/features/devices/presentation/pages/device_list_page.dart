@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/device_provider.dart';
 import '../../../../shared/models/device_model.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/mqtt/mqtt_provider.dart';
 import 'device_detail_page.dart';
 
 /// A page displaying the list of devices for a specific project.
@@ -40,63 +42,73 @@ class DeviceListPage extends ConsumerWidget {
   }
 }
 
-class _DeviceList extends StatelessWidget {
+class _DeviceList extends ConsumerWidget {
   final List<DeviceModel> devices;
 
   const _DeviceList({required this.devices});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mqttState = ref.watch(mqttProvider);
+
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: devices.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final device = devices[index];
-        return Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        final realtimeStatus = mqttState.deviceStatus[device.id];
+        final displayStatus = realtimeStatus ?? device.status;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+            border: Border.all(color: AppTheme.borderColor),
+          ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
-              backgroundColor: _getStatusColor(device.status).withValues(alpha: 0.1),
+              backgroundColor: _getStatusColor(displayStatus).withValues(alpha: 0.1),
               child: Icon(
                 Icons.developer_board,
-                color: _getStatusColor(device.status),
+                color: _getStatusColor(displayStatus),
               ),
             ),
             title: Text(
               device.name,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Type: ${device.type}'),
+                Text('Tipe: ${device.type}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                const SizedBox(height: 4),
                 Row(
                   children: [
                     Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _getStatusColor(device.status),
+                        color: _getStatusColor(displayStatus),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      device.status,
+                      displayStatus,
                       style: TextStyle(
-                        color: _getStatusColor(device.status),
-                        fontWeight: FontWeight.w500,
+                        color: _getStatusColor(displayStatus),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
                       ),
                     ),
                     const SizedBox(width: 8),
                     if (device.lastSeen != null)
                       Expanded(
                         child: Text(
-                          'Last seen: ${_formatDate(device.lastSeen!)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          'Update: ${_formatDate(device.lastSeen!)}',
+                          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -104,7 +116,7 @@ class _DeviceList extends StatelessWidget {
                 ),
               ],
             ),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
             onTap: () {
               Navigator.push(
                 context,
@@ -120,13 +132,13 @@ class _DeviceList extends StatelessWidget {
   }
 
   Color _getStatusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'ONLINE':
-        return Colors.green;
-      case 'OFFLINE':
-        return Colors.red;
-      default:
-        return Colors.orange;
+    final s = status.toUpperCase();
+    if (s == 'ONLINE' || s == 'CONNECTED') {
+      return AppTheme.statusOptimal;
+    } else if (s == 'OFFLINE' || s == 'DISCONNECTED') {
+      return AppTheme.statusCritical;
+    } else {
+      return AppTheme.statusWarning;
     }
   }
 

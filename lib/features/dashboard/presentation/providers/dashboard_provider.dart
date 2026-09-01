@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/project_model.dart';
 import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/telemetry_model.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../devices/presentation/providers/device_provider.dart';
 import '../../../../core/api/api_service.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/demo/demo_data_controller.dart';
+import '../../../../core/mqtt/mqtt_provider.dart';
 
 /// A provider that holds the currently selected project for the dashboard.
 final selectedProjectProvider = StateProvider<ProjectModel?>((ref) => null);
@@ -17,6 +19,7 @@ class DashboardSummary {
   final int offlineDevices;
   final List<AlertModel> recentAlerts;
   final List<TelemetryModel> latestTelemetry;
+  final List<TelemetryModel> telemetryHistory;
   final int criticalAlerts;
   final int warningAlerts;
   final int activeAlerts;
@@ -27,6 +30,7 @@ class DashboardSummary {
     required this.offlineDevices,
     required this.recentAlerts,
     required this.latestTelemetry,
+    required this.telemetryHistory,
     required this.criticalAlerts,
     required this.warningAlerts,
     required this.activeAlerts,
@@ -34,7 +38,6 @@ class DashboardSummary {
 }
 
 /// Demo mode: Provider sinkron — langsung baca dari demoState TANPA FutureProvider
-/// Tidak ada siklus loading → setiap tick demo hanya rebuild widget-nya saja
 final demoDashboardProvider = Provider.autoDispose<DashboardSummary>((ref) {
   final project = ref.watch(selectedProjectProvider);
   if (project == null) {
@@ -44,6 +47,7 @@ final demoDashboardProvider = Provider.autoDispose<DashboardSummary>((ref) {
       offlineDevices: 0,
       recentAlerts: [],
       latestTelemetry: [],
+      telemetryHistory: [],
       criticalAlerts: 0,
       warningAlerts: 0,
       activeAlerts: 0,
@@ -78,16 +82,62 @@ final demoDashboardProvider = Provider.autoDispose<DashboardSummary>((ref) {
     latestTelemetry: demoState.telemetryHistory.isNotEmpty
         ? [demoState.telemetryHistory.first]
         : [],
+    telemetryHistory: demoState.telemetryHistory,
     criticalAlerts: criticalCount,
     warningAlerts: warningCount,
     activeAlerts: activeCount,
   );
 });
 
-/// Production mode: FutureProvider yang hanya fetch sekali per project
-/// (tidak ada watch ke provider yang berubah-ubah)
+/// Production mode: FutureProvider yang fetch data dashboard
 final dashboardDataProvider =
     FutureProvider.autoDispose<DashboardSummary>((ref) async {
+  final auth = ref.watch(authProvider);
+
+  // Local Monitoring Mode: pure MQTT realtime data, no protected REST API calls
+  if (auth.isLocalMonitoring) {
+    final mqttState = ref.watch(mqttProvider);
+    final telemetryList = mqttState.realtimeTelemetry.values.toList();
+
+    int onlineCount = 0;
+    int offlineCount = 0;
+    for (final status in mqttState.deviceStatus.values) {
+      if (status.toLowerCase() == 'online') {
+        onlineCount++;
+      } else if (status.toLowerCase() == 'offline') {
+        offlineCount++;
+      }
+    }
+    final totalDevs = mqttState.deviceStatus.isNotEmpty
+        ? mqttState.deviceStatus.length
+        : (telemetryList.isNotEmpty ? telemetryList.map((e) => e.deviceId).toSet().length : 1);
+
+    final eventAlerts = mqttState.realtimeEvents.values.map((t) {
+      final devId = t.deviceId ?? 'device';
+      return AlertModel(
+        id: '${devId}_${t.timestamp.millisecondsSinceEpoch}',
+        deviceId: devId,
+        component: t.component ?? 'System',
+        severity: 'WARNING',
+        message: 'Realtime event from $devId',
+        status: 'ACTIVE',
+        timestamp: t.timestamp,
+      );
+    }).toList();
+
+    return DashboardSummary(
+      totalDevices: totalDevs,
+      onlineDevices: onlineCount,
+      offlineDevices: offlineCount,
+      recentAlerts: eventAlerts,
+      latestTelemetry: telemetryList,
+      telemetryHistory: telemetryList,
+      criticalAlerts: 0,
+      warningAlerts: eventAlerts.length,
+      activeAlerts: eventAlerts.length,
+    );
+  }
+
   final project = ref.watch(selectedProjectProvider);
   if (project == null) {
     throw Exception('No project selected');
@@ -95,7 +145,6 @@ final dashboardDataProvider =
 
   // Demo mode: delegasikan ke provider sinkron
   if (AppConfig.isDemoMode) {
-    // Ambil snapshot saat ini dari demo state — TIDAK watch (biar tidak loop)
     final demoState = ref.read(demoDataControllerProvider);
 
     final activeCount = demoState.alerts
@@ -124,6 +173,7 @@ final dashboardDataProvider =
       latestTelemetry: demoState.telemetryHistory.isNotEmpty
           ? [demoState.telemetryHistory.first]
           : [],
+      telemetryHistory: demoState.telemetryHistory,
       criticalAlerts: criticalCount,
       warningAlerts: warningCount,
       activeAlerts: activeCount,
@@ -200,6 +250,23 @@ final dashboardDataProvider =
     }
   }
 
+  // Fetch telemetry history for the main chart
+  List<TelemetryModel> telemetryHistory = [];
+  if (devicesToFetch.isNotEmpty) {
+    final historyResponse = await apiService.getTelemetry(
+      deviceId: devicesToFetch.first.id,
+      startTime: startTime,
+      endTime: now,
+      limit: 50,
+    );
+    if (historyResponse.statusCode == 200) {
+      final data = historyResponse.data['data'] as List;
+      telemetryHistory = data
+          .map((json) => TelemetryModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    }
+  }
+
   return DashboardSummary(
     totalDevices: totalDevices,
     onlineDevices: onlineDevices,
@@ -207,6 +274,7 @@ final dashboardDataProvider =
     recentAlerts:
         allRecentAlerts..sort((a, b) => b.timestamp.compareTo(a.timestamp)),
     latestTelemetry: latestTelemetry,
+    telemetryHistory: telemetryHistory,
     criticalAlerts: criticalCount,
     warningAlerts: warningCount,
     activeAlerts: activeCount,

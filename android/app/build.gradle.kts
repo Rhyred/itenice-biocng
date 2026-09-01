@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.coresight.itenice_bio_cng"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

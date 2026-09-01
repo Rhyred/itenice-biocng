@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:itenice_bio_cng/features/connection/presentation/pages/connection_setup_page.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -46,6 +48,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
         .login(_usernameCtrl.text.trim(), _passwordCtrl.text);
   }
 
+  Future<void> _enterLocalMonitoring() async {
+    await ref.read(authProvider.notifier).enterLocalMonitoring();
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
@@ -66,6 +72,22 @@ class _LoginPageState extends ConsumerState<LoginPage>
             left: -80,
             child: _GlowCircle(
                 color: AppTheme.primaryDark.withValues(alpha: 0.2), size: 320),
+          ),
+          Positioned(
+            top: 40,
+            right: 16,
+            child: IconButton(
+              icon: const Icon(Icons.settings_ethernet_rounded, color: Colors.white70),
+              tooltip: 'Pengaturan Koneksi Plant',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ConnectionSetupPage(isEditing: true),
+                  ),
+                );
+              },
+            ),
           ),
 
           // Main content
@@ -293,6 +315,53 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     ),
                                   ),
                                 ),
+
+                                // Continue without account (Local Monitoring Mode)
+                                if (!AppConfig.isDemoMode) ...[
+                                  const SizedBox(height: 16),
+                                  OutlinedButton.icon(
+                                    key: const Key('continue_without_account_button'),
+                                    onPressed:
+                                        auth.isLoading ? null : _enterLocalMonitoring,
+                                    icon: const Icon(
+                                      Icons.monitor_heart_outlined,
+                                      color: AppTheme.statusWarning,
+                                      size: 20,
+                                    ),
+                                    label: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: const [
+                                        Text(
+                                          'Continue as Local Monitor',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        Text(
+                                          'Local realtime monitoring only',
+                                          style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(
+                                        color: AppTheme.statusWarning
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10, horizontal: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

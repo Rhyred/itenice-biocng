@@ -8,12 +8,14 @@ class OperatorCredential {
   final String passwordHash;
   final String displayName;
   final String role;
+  final String? token;
 
   const OperatorCredential({
     required this.username,
     required this.passwordHash,
     required this.displayName,
     required this.role,
+    this.token,
   });
 
   Map<String, dynamic> toMap() => {
@@ -21,6 +23,7 @@ class OperatorCredential {
         'passwordHash': passwordHash,
         'displayName': displayName,
         'role': role,
+        'token': token,
       };
 
   factory OperatorCredential.fromMap(Map<dynamic, dynamic> map) =>
@@ -29,18 +32,18 @@ class OperatorCredential {
         passwordHash: map['passwordHash'].toString(),
         displayName: map['displayName'].toString(),
         role: map['role'].toString(),
+        token: map['token']?.toString(),
       );
 }
 
-/// In-memory credential store — bekerja di semua platform tanpa konfigurasi
-/// tambahan. Web: tidak butuh IndexedDB. Mobile: tidak butuh Hive adapter.
+/// In-memory & local session store for operator credentials
 class CredentialStore {
   static String _hash(String password) {
     final bytes = utf8.encode(password);
     return sha256.convert(bytes).toString();
   }
 
-  /// Database akun operator (in-memory, bisa diperluas ke persistent storage)
+  /// Database akun operator (in-memory)
   static final Map<String, OperatorCredential> _accounts = {};
 
   /// Sesi aktif saat ini
@@ -63,7 +66,12 @@ class CredentialStore {
     debugPrint('[CredentialStore] Initialized with ${_accounts.length} accounts');
   }
 
-  /// Login — kembalikan OperatorCredential jika valid, null jika gagal
+  /// Simpan sesi aktif yang diverifikasi server
+  static Future<void> saveSession(OperatorCredential session) async {
+    _activeSession = session;
+  }
+
+  /// Login lokal — kembalikan OperatorCredential jika valid, null jika gagal
   static Future<OperatorCredential?> login(
       String username, String password) async {
     final key = username.toLowerCase().trim();

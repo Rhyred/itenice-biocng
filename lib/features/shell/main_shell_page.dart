@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
+import '../auth/presentation/providers/auth_provider.dart';
 import '../dashboard/presentation/pages/dashboard_page.dart';
 import '../ai/presentation/pages/ai_assistant_page.dart';
 import '../profile/presentation/pages/profile_page.dart';
@@ -22,18 +23,20 @@ class MainShellPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(shellTabProvider);
+    final isLocalMonitoring = ref.watch(authProvider).isLocalMonitoring;
 
-    // Auto-select project pertama — hanya dijalankan saat projectProvider
-    // pertama kali resolve, tidak loop karena listen hanya bereaksi saat BERUBAH
-    ref.listen<AsyncValue>(projectProvider, (_, next) {
-      next.whenData((response) {
-        if (ref.read(selectedProjectProvider) == null &&
-            response.data.isNotEmpty) {
-          ref.read(selectedProjectProvider.notifier).state =
-              response.data.first;
-        }
+    if (!isLocalMonitoring) {
+      // Auto-select project pertama dalam mode Authenticated / Demo
+      ref.listen<AsyncValue>(projectProvider, (_, next) {
+        next.whenData((response) {
+          if (ref.read(selectedProjectProvider) == null &&
+              response.data.isNotEmpty) {
+            ref.read(selectedProjectProvider.notifier).state =
+                response.data.first;
+          }
+        });
       });
-    });
+    }
 
     return Scaffold(
       body: IndexedStack(

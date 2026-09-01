@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 import '../../shared/models/telemetry_model.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/dashboard/presentation/providers/dashboard_provider.dart';
 import '../config/app_config.dart';
+import '../config/runtime_config_store.dart';
 import 'mqtt_service.dart';
 import 'mqtt_state.dart';
 
@@ -25,6 +27,10 @@ class MqttNotifier extends StateNotifier<MqttState> {
   Timer? _primaryProbeTimer;
   int _primaryStabilityCount = 0;
 
+  StreamSubscription? _connSub;
+  StreamSubscription? _msgSub;
+  ProviderSubscription? _projectSub;
+
   MqttNotifier(this._ref) : super(const MqttState()) {
     _init();
   }
@@ -32,7 +38,8 @@ class MqttNotifier extends StateNotifier<MqttState> {
   void _init() {
     final mqttService = _ref.read(mqttServiceProvider);
 
-    mqttService.connectionStateStream.listen((status) {
+    _connSub = mqttService.connectionStateStream.listen((status) {
+      if (!mounted) return;
       MqttConnectionStatus mappedStatus;
       switch (status) {
         case MqttConnectionState.connected:
@@ -54,7 +61,6 @@ class MqttNotifier extends StateNotifier<MqttState> {
           _handleDisconnect();
           break;
         case MqttConnectionState.disconnecting:
-        default:
           mappedStatus = MqttConnectionStatus.disconnected;
           break;
       }
@@ -63,11 +69,13 @@ class MqttNotifier extends StateNotifier<MqttState> {
       }
     });
 
-    mqttService.messageStream.listen((msg) {
+    _msgSub = mqttService.messageStream.listen((msg) {
+      if (!mounted) return;
       _handleIncomingMessage(msg.topic, msg.payload);
     });
 
-    _ref.listen(selectedProjectProvider, (previous, next) {
+    _projectSub = _ref.listen(selectedProjectProvider, (previous, next) {
+      if (!mounted) return;
       final newProjectId = next?.id;
       if (_currentProjectId != newProjectId) {
         if (_currentProjectId != null) {
@@ -76,10 +84,11 @@ class MqttNotifier extends StateNotifier<MqttState> {
         _currentProjectId = newProjectId;
         if (_currentProjectId != null) {
           _subscribeToProject(_currentProjectId!);
-          // Clear previous project telemetry
+          // Clear previous project telemetry and status
           state = state.copyWith(
             realtimeTelemetry: {},
             deviceStatus: {},
+            realtimeEvents: {},
           );
         }
       }
@@ -90,10 +99,54 @@ class MqttNotifier extends StateNotifier<MqttState> {
     _connect();
   }
 
+  void startLocalMonitoring() {
+    _reconnectTimer?.cancel();
+    _primaryProbeTimer?.cancel();
+    _primaryReconnectAttempts = 0;
+    _primaryStabilityCount = 0;
+
+    final mqttService = _ref.read(mqttServiceProvider);
+    mqttService.disconnect();
+
+    state = state.copyWith(
+      activeBrokerRole: BrokerRole.emergency,
+      connectionStatus: MqttConnectionStatus.disconnected,
+      realtimeTelemetry: {},
+      deviceStatus: {},
+      realtimeEvents: {},
+    );
+
+    _currentProjectId = _ref.read(selectedProjectProvider)?.id;
+
+    _connect();
+  }
+
+  void reconnectWithNewConfig() {
+    _reconnectTimer?.cancel();
+    _primaryProbeTimer?.cancel();
+    _primaryReconnectAttempts = 0;
+    _primaryStabilityCount = 0;
+
+    final mqttService = _ref.read(mqttServiceProvider);
+    mqttService.disconnect();
+
+    state = state.copyWith(
+      activeBrokerRole: BrokerRole.primary,
+      connectionStatus: MqttConnectionStatus.disconnected,
+      realtimeTelemetry: {},
+      deviceStatus: {},
+      realtimeEvents: {},
+    );
+
+    _connect();
+  }
+
   void _handleDisconnect() {
     if (AppConfig.isDemoMode) return;
 
-    if (state.activeBrokerRole == BrokerRole.primary) {
+    final isLocalMonitoring = _ref.read(authProvider).isLocalMonitoring;
+
+    if (state.activeBrokerRole == BrokerRole.primary && !isLocalMonitoring) {
       _primaryReconnectAttempts++;
       if (_primaryReconnectAttempts >= _maxPrimaryReconnectAttempts) {
         debugPrint('MqttNotifier: Primary reconnect threshold reached. Switching to emergency broker.');
@@ -102,7 +155,7 @@ class MqttNotifier extends StateNotifier<MqttState> {
         _scheduleReconnect();
       }
     } else {
-      // Emergency disconnected, try to reconnect to emergency
+      // Emergency disconnected (or in Local Monitoring Mode), try to reconnect to emergency
       _scheduleReconnect();
     }
   }
@@ -116,8 +169,11 @@ class MqttNotifier extends StateNotifier<MqttState> {
     // Connect to emergency
     _connect();
 
-    // Start probing primary
-    _startPrimaryProbe();
+    // Probe primary only if not in local monitoring mode
+    final isLocalMonitoring = _ref.read(authProvider).isLocalMonitoring;
+    if (!isLocalMonitoring) {
+      _startPrimaryProbe();
+    }
   }
 
   void _switchToPrimary() {
@@ -159,19 +215,25 @@ class MqttNotifier extends StateNotifier<MqttState> {
   }
 
   Future<bool> _probePrimary() async {
-    if (AppConfig.mqttPrimaryHost.isEmpty) return false;
+    final runtimeConfig = _ref.read(runtimeConfigProvider);
+    final primaryHost = runtimeConfig.effectiveMqttPrimaryHost;
+    final primaryPort = runtimeConfig.effectiveMqttPrimaryPort;
+    final primaryUsername = runtimeConfig.effectiveMqttPrimaryUsername;
+    final primaryPassword = runtimeConfig.effectiveMqttPrimaryPassword;
+
+    if (primaryHost.isEmpty) return false;
     
     try {
       final probeClient = MqttServerClient.withPort(
-        AppConfig.mqttPrimaryHost,
+        primaryHost,
         '${AppConfig.mqttClientId}_probe',
-        AppConfig.mqttPrimaryPort,
+        primaryPort,
       );
       probeClient.logging(on: false);
       probeClient.keepAlivePeriod = 10;
       
-      if (AppConfig.mqttPrimaryUsername.isNotEmpty) {
-        await probeClient.connect(AppConfig.mqttPrimaryUsername, AppConfig.mqttPrimaryPassword);
+      if (primaryUsername.isNotEmpty) {
+        await probeClient.connect(primaryUsername, primaryPassword);
       } else {
         await probeClient.connect();
       }
@@ -190,13 +252,22 @@ class MqttNotifier extends StateNotifier<MqttState> {
     _reconnectTimer?.cancel();
     state = state.copyWith(connectionStatus: MqttConnectionStatus.connecting);
     final mqttService = _ref.read(mqttServiceProvider);
+    final runtimeConfig = _ref.read(runtimeConfigProvider);
 
     bool isPrimary = state.activeBrokerRole == BrokerRole.primary;
     
-    final host = isPrimary ? AppConfig.mqttPrimaryHost : AppConfig.mqttEmergencyHost;
-    final port = isPrimary ? AppConfig.mqttPrimaryPort : AppConfig.mqttEmergencyPort;
-    final username = isPrimary ? AppConfig.mqttPrimaryUsername : AppConfig.mqttEmergencyUsername;
-    final password = isPrimary ? AppConfig.mqttPrimaryPassword : AppConfig.mqttEmergencyPassword;
+    final host = isPrimary
+        ? runtimeConfig.effectiveMqttPrimaryHost
+        : runtimeConfig.effectiveMqttEmergencyHost;
+    final port = isPrimary
+        ? runtimeConfig.effectiveMqttPrimaryPort
+        : runtimeConfig.effectiveMqttEmergencyPort;
+    final username = isPrimary
+        ? runtimeConfig.effectiveMqttPrimaryUsername
+        : runtimeConfig.effectiveMqttEmergencyUsername;
+    final password = isPrimary
+        ? runtimeConfig.effectiveMqttPrimaryPassword
+        : runtimeConfig.effectiveMqttEmergencyPassword;
 
     await mqttService.connect(
       host: host,
@@ -225,12 +296,14 @@ class MqttNotifier extends StateNotifier<MqttState> {
   void _subscribeToProject(String projectId) {
     final mqttService = _ref.read(mqttServiceProvider);
     mqttService.subscribe('nicegas/$projectId/+/telemetry/+');
+    mqttService.subscribe('nicegas/$projectId/+/event/+');
     mqttService.subscribe('nicegas/$projectId/+/status/connection');
   }
 
   void _unsubscribeFromProject(String projectId) {
     final mqttService = _ref.read(mqttServiceProvider);
     mqttService.unsubscribe('nicegas/$projectId/+/telemetry/+');
+    mqttService.unsubscribe('nicegas/$projectId/+/event/+');
     mqttService.unsubscribe('nicegas/$projectId/+/status/connection');
   }
 
@@ -258,6 +331,19 @@ class MqttNotifier extends StateNotifier<MqttState> {
       } catch (e) {
         debugPrint('MqttNotifier: Failed to parse telemetry payload: $e');
       }
+    } else if (category == 'event') {
+      try {
+        final json = jsonDecode(payload);
+        final event = TelemetryModel.fromJson(json, deviceId: deviceId, component: component);
+        final key = '$deviceId:$component';
+
+        final updatedEvents = Map<String, TelemetryModel>.from(state.realtimeEvents);
+        updatedEvents[key] = event;
+
+        state = state.copyWith(realtimeEvents: updatedEvents);
+      } catch (e) {
+        debugPrint('MqttNotifier: Failed to parse event payload: $e');
+      }
     } else if (category == 'status' && component == 'connection') {
       final updatedStatus = Map<String, String>.from(state.deviceStatus);
       updatedStatus[deviceId] = payload.trim().toLowerCase();
@@ -267,6 +353,9 @@ class MqttNotifier extends StateNotifier<MqttState> {
 
   @override
   void dispose() {
+    _connSub?.cancel();
+    _msgSub?.cancel();
+    _projectSub?.close();
     _reconnectTimer?.cancel();
     _primaryProbeTimer?.cancel();
     super.dispose();

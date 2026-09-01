@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../../../../core/mqtt/mqtt_provider.dart';
 import '../../../../core/mqtt/mqtt_state.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/config/app_config.dart';
 
 class StatusSummaryCard extends StatelessWidget {
   final int total;
@@ -18,45 +20,37 @@ class StatusSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shadowColor: Colors.green.withValues(alpha: 0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Colors.green.shade50],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'System Overview',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Icon(Icons.hub_outlined, color: Colors.green.shade700),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _StatusItem(label: 'Total', value: total.toString(), color: Colors.blue.shade700),
-                  _StatusItem(label: 'Online', value: online.toString(), color: Colors.green.shade700),
-                  _StatusItem(label: 'Offline', value: offline.toString(), color: Colors.red.shade700),
-                ],
-              ),
-            ],
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Ikhtisar Sistem',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                Icon(Icons.hub_outlined, color: AppTheme.primary, size: 20),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _StatusItem(label: 'Total', value: total.toString(), color: AppTheme.textPrimary),
+                _StatusItem(label: 'Online', value: online.toString(), color: AppTheme.statusOptimal),
+                _StatusItem(label: 'Offline', value: offline.toString(), color: AppTheme.statusCritical),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -76,11 +70,11 @@ class _StatusItem extends StatelessWidget {
       children: [
         Text(
           value,
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+          style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500, fontSize: 12),
         ),
       ],
     );
@@ -94,23 +88,39 @@ class TelemetrySummaryCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mqttState = ref.watch(mqttProvider);
-    
-    // Combine baseline REST data with real-time MQTT data
-    final displayedTelemetry = telemetry.map((restTelemetry) {
-      final deviceId = restTelemetry.deviceId;
-      final component = restTelemetry.component ?? 'default'; // Fallback if no component
-      final key = '$deviceId:$component';
-      
-      // Overlay with MQTT data if available
-      final mqttTelemetry = mqttState.realtimeTelemetry[key];
-      return mqttTelemetry ?? restTelemetry;
-    }).toList();
+    if (telemetry.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+          border: Border.all(color: AppTheme.borderColor),
+        ),
+        child: const Center(
+          child: Text('Tidak ada data telemetri.', style: TextStyle(color: AppTheme.textSecondary)),
+        ),
+      );
+    }
 
-    return Card(
-      elevation: 4,
-      shadowColor: Colors.blue.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    // Using the first device as the summary representative
+    final baseT = telemetry.first;
+    final deviceId = baseT.deviceId;
+    final component = baseT.component ?? 'default';
+    final key = '$deviceId:$component';
+
+    // Watch only the specific realtime telemetry for this device:component
+    final mqttT = ref.watch(mqttProvider.select((s) => s.realtimeTelemetry[key]));
+    final isMqttConnected = ref.watch(mqttProvider.select((s) => s.connectionStatus == MqttConnectionStatus.connected));
+    
+    final displayedT = mqttT ?? baseT;
+    final isLive = (mqttT != null && isMqttConnected) || AppConfig.isDemoMode;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -120,29 +130,14 @@ class TelemetrySummaryCard extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Realtime Telemetry',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  'Telemetri Real-time',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                 ),
-                Icon(Icons.sensors, color: Colors.blue.shade700),
+                Icon(Icons.sensors, color: AppTheme.primary, size: 20),
               ],
             ),
             const SizedBox(height: 20),
-            if (displayedTelemetry.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text('No recent telemetry available.', style: TextStyle(color: Colors.grey)),
-                ),
-              )
-            else
-              ...displayedTelemetry.take(1).map((t) {
-                final deviceId = t.deviceId;
-                final component = t.component ?? 'default';
-                final key = '$deviceId:$component';
-                final isLive = mqttState.realtimeTelemetry.containsKey(key) && 
-                               mqttState.connectionStatus == MqttConnectionStatus.connected;
-                return _TelemetryGrid(telemetry: t, isLive: isLive);
-              }),
+            _TelemetryGrid(telemetry: displayedT, isLive: isLive),
           ],
         ),
       ),
@@ -163,18 +158,18 @@ class _TelemetryGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Icon(Icons.developer_board, size: 14, color: Colors.grey),
+            const Icon(Icons.developer_board, size: 14, color: AppTheme.textSecondary),
             const SizedBox(width: 4),
             Text(
-              'Device: ${telemetry.deviceId ?? 'Unknown'}',
-              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: Colors.grey.shade600),
+              'Perangkat: ${telemetry.deviceId ?? 'Unknown'}',
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11, color: AppTheme.textSecondary),
             ),
             if (isLive) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: AppTheme.statusCritical,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
@@ -185,8 +180,8 @@ class _TelemetryGrid extends StatelessWidget {
             ],
             const Spacer(),
             Text(
-              'Last update: ${telemetry.timestamp.hour}:${telemetry.timestamp.minute.toString().padLeft(2, '0')}:${telemetry.timestamp.second.toString().padLeft(2, '0')}',
-              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+              'Update: ${_formatTime(telemetry.timestamp)}',
+              style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -195,18 +190,22 @@ class _TelemetryGrid extends StatelessWidget {
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 2.5,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
+          childAspectRatio: 2.8,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
           children: telemetry.metrics.entries.map((e) {
             return _MetricTile(
               label: e.key.replaceAll('_', ' ').toUpperCase(),
-              value: '${e.value.value.toStringAsFixed(1)} ${e.value.unit}',
+              value: '${e.value.value % 1 == 0 ? e.value.value.toInt() : e.value.value.toStringAsFixed(1)} ${e.value.unit}',
             );
           }).toList(),
         ),
       ],
     );
+  }
+
+  String _formatTime(DateTime dt) {
+    return '${dt.hour}:${dt.minute.toString().padLeft(2, '0')}:${dt.second.toString().padLeft(2, '0')}';
   }
 }
 
@@ -219,11 +218,11 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,11 +230,11 @@ class _MetricTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
           ),
         ],
       ),
@@ -257,45 +256,37 @@ class AlertSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shadowColor: Colors.orange.withValues(alpha: 0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Colors.white, Colors.orange.shade50],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Alerts Summary',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _AlertItem(label: 'Critical', value: critical.toString(), color: Colors.red.shade700),
-                  _AlertItem(label: 'Warning', value: warning.toString(), color: Colors.orange.shade700),
-                  _AlertItem(label: 'Active', value: active.toString(), color: Colors.blueGrey.shade700),
-                ],
-              ),
-            ],
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppTheme.borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Ringkasan Peringatan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                Icon(Icons.warning_amber_rounded, color: AppTheme.statusWarning, size: 20),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _AlertItem(label: 'Kritis', value: critical.toString(), color: AppTheme.statusCritical),
+                _AlertItem(label: 'Peringatan', value: warning.toString(), color: AppTheme.statusWarning),
+                _AlertItem(label: 'Aktif', value: active.toString(), color: AppTheme.textPrimary),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -315,11 +306,11 @@ class _AlertItem extends StatelessWidget {
       children: [
         Text(
           value,
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+          style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.w500, fontSize: 12),
         ),
       ],
     );

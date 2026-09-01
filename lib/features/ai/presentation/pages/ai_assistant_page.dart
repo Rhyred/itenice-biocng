@@ -123,7 +123,7 @@ class _AiAssistantPageState extends ConsumerState<AiAssistantPage> {
                     data: (s) => _MachineHealthCard(summary: s),
                     loading: () =>
                         const _CardShimmer(height: 110),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, st) => const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 12),
 

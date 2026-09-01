@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/demo/demo_data_controller.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../shared/models/telemetry_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,6 +94,7 @@ class TelemetryTrendChart extends StatelessWidget {
   final String title;
   final double minY;
   final double maxY;
+  final bool isLive;
 
   const TelemetryTrendChart({
     super.key,
@@ -104,6 +105,7 @@ class TelemetryTrendChart extends StatelessWidget {
     required this.title,
     required this.minY,
     required this.maxY,
+    this.isLive = false,
   });
 
   @override
@@ -143,12 +145,34 @@ class TelemetryTrendChart extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text(title,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textSecondary)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(title,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textSecondary)),
+                    if (isLive || AppConfig.isDemoMode) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppTheme.statusCritical,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'LIVE',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(width: 8),
               Container(
@@ -230,7 +254,7 @@ class TelemetryTrendChart extends StatelessWidget {
                     isStrokeCapRound: true,
                     dotData: FlDotData(
                       show: true,
-                      getDotPainter: (spot, _, __, idx) =>
+                      getDotPainter: (spot, percent, barData, idx) =>
                           FlDotCirclePainter(
                         radius: idx == spots.length - 1 ? 3.5 : 0,
                         color: color,
@@ -267,8 +291,9 @@ class TelemetryTrendChart extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class GasFlowBarChart extends StatelessWidget {
   final List<TelemetryModel> history;
+  final bool isLive;
 
-  const GasFlowBarChart({super.key, required this.history});
+  const GasFlowBarChart({super.key, required this.history, this.isLive = false});
 
   @override
   Widget build(BuildContext context) {
@@ -309,11 +334,33 @@ class GasFlowBarChart extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Laju Produksi Gas',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textSecondary)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Laju Produksi Gas',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary)),
+                  if (isLive || AppConfig.isDemoMode) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.statusCritical,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'LIVE',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 7,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -503,23 +550,23 @@ class _Legend extends StatelessWidget {
 // 4. Dashboard Charts Section — RESPONSIVE (mobile single col, tablet 2-col)
 // ─────────────────────────────────────────────────────────────────────────────
 class DashboardChartsSection extends StatelessWidget {
-  final DemoState demoState;
+  final List<TelemetryModel> history;
   final int onlineDevices;
   final int offlineDevices;
   final int totalDevices;
+  final bool isLive;
 
   const DashboardChartsSection({
     super.key,
-    required this.demoState,
+    required this.history,
     required this.onlineDevices,
     required this.offlineDevices,
     required this.totalDevices,
+    this.isLive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final history = demoState.telemetryHistory;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final mobile = _isMobile(constraints.maxWidth);
@@ -543,6 +590,7 @@ class DashboardChartsSection extends StatelessWidget {
                 title: 'Tekanan Gas',
                 minY: 1.0,
                 maxY: 1.8,
+                isLive: isLive,
               ),
               const SizedBox(height: 10),
               TelemetryTrendChart(
@@ -553,6 +601,7 @@ class DashboardChartsSection extends StatelessWidget {
                 title: 'Kadar Metana',
                 minY: 55,
                 maxY: 70,
+                isLive: isLive,
               ),
               const SizedBox(height: 10),
               TelemetryTrendChart(
@@ -563,6 +612,7 @@ class DashboardChartsSection extends StatelessWidget {
                 title: 'Suhu Digester',
                 minY: 35,
                 maxY: 42,
+                isLive: isLive,
               ),
               const SizedBox(height: 10),
               DeviceStatusDonut(
@@ -583,6 +633,7 @@ class DashboardChartsSection extends StatelessWidget {
                       title: 'Tekanan Gas',
                       minY: 1.0,
                       maxY: 1.8,
+                      isLive: isLive,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -595,6 +646,7 @@ class DashboardChartsSection extends StatelessWidget {
                       title: 'Kadar Metana',
                       minY: 55,
                       maxY: 70,
+                      isLive: isLive,
                     ),
                   ),
                 ],
@@ -611,6 +663,7 @@ class DashboardChartsSection extends StatelessWidget {
                       title: 'Suhu Digester',
                       minY: 35,
                       maxY: 42,
+                      isLive: isLive,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -627,7 +680,7 @@ class DashboardChartsSection extends StatelessWidget {
 
             const SizedBox(height: 10),
             // Gas Flow full width di semua ukuran
-            GasFlowBarChart(history: history),
+            GasFlowBarChart(history: history, isLive: isLive),
             const SizedBox(height: 4),
           ],
         );

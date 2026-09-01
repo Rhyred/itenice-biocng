@@ -1,14 +1,45 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../config/app_config.dart';
+import '../config/runtime_config.dart';
+import '../config/runtime_config_store.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 
 /// A provider for the [ApiService] instance.
 final apiServiceProvider = Provider<ApiService>((ref) {
+  final runtimeConfig = ref.watch(runtimeConfigProvider);
+  final authState = ref.watch(authProvider);
+
   final dio = Dio(BaseOptions(
-    baseUrl: AppConfig.apiBaseUrl,
+    baseUrl: runtimeConfig.effectiveApiBaseUrl,
     connectTimeout: const Duration(seconds: 5),
     receiveTimeout: const Duration(seconds: 3),
   ));
+
+  if (authState.user?.token != null && authState.user!.token!.isNotEmpty) {
+    dio.options.headers['Authorization'] = 'Bearer ${authState.user!.token}';
+  }
+
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) {
+      debugPrint('[REST Request] ${options.method} ${options.uri}');
+      return handler.next(options);
+    },
+    onResponse: (response, handler) {
+      debugPrint('[REST Response] ${response.statusCode} ${response.requestOptions.uri}');
+      return handler.next(response);
+    },
+    onError: (DioException e, handler) {
+      debugPrint('[REST Error] ${e.requestOptions.method} ${e.requestOptions.uri}');
+      debugPrint('  Base URL: ${dio.options.baseUrl}');
+      debugPrint('  Status: ${e.response?.statusCode}');
+      debugPrint('  Type: ${e.type}');
+      debugPrint('  Message: ${e.message}');
+      debugPrint('  Error: ${e.error}');
+      return handler.next(e);
+    },
+  ));
+
   return ApiService(dio);
 });
 
@@ -18,10 +49,50 @@ class ApiService {
 
   ApiService(this._dio);
 
+  /// Standardized health check test against a candidate base URL.
+  static Future<bool> testApiConnection(String baseUrl) async {
+    final formattedUrl = RuntimeConfig.formatApiUrl(baseUrl);
+    debugPrint('[ApiService] Testing connection to: $formattedUrl/health');
+    try {
+      final testDio = Dio(BaseOptions(
+        baseUrl: formattedUrl,
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 3),
+      ));
+      final response = await testDio.get('/health');
+      debugPrint('[ApiService] Connection test SUCCESS ($formattedUrl/health) — Status ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[ApiService] Connection test FAILED ($formattedUrl/health)');
+      if (e is DioException) {
+        debugPrint('  DioException type: ${e.type}');
+        debugPrint('  DioException message: ${e.message}');
+        debugPrint('  DioException error: ${e.error}');
+        debugPrint('  HTTP Status: ${e.response?.statusCode}');
+      } else {
+        debugPrint('  Error: $e');
+      }
+      return false;
+    }
+  }
+
   /// Calls the backend health endpoint.
   Future<Response> getHealth() async {
     try {
       return await _dio.get('/health');
+    } on DioException {
+      rethrow;
+    }
+  }
+
+  /// Authenticates user credentials with the backend.
+  Future<Response> login(String username, String password) async {
+    try {
+      return await _dio.post('/auth/login', data: {
+        'username': username,
+        'email': username,
+        'password': password,
+      });
     } on DioException {
       rethrow;
     }
