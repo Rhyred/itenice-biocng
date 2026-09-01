@@ -57,6 +57,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final auth = ref.watch(authProvider);
 
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: const Color(0xFF1A1210),
       body: Stack(
         children: [
@@ -98,6 +99,16 @@ class _LoginPageState extends ConsumerState<LoginPage>
                 child: FadeTransition(
                   opacity: _fade,
                   child: SlideTransition(
+=======
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            child: FadeTransition(
+              opacity: _fade,
+              child: SlideTransition(
+>>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                     position: _slide,
                     child: Form(
                       key: _formKey,
@@ -110,88 +121,70 @@ class _LoginPageState extends ConsumerState<LoginPage>
                             child: Column(
                               children: [
                                 Container(
-                                  width: 90,
-                                  height: 90,
+                                  width: 72,
+                                  height: 72,
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(22),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppTheme.primary
-                                            .withValues(alpha: 0.4),
-                                        blurRadius: 24,
-                                        offset: const Offset(0, 8),
-                                      )
-                                    ],
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(22),
+                                    borderRadius: BorderRadius.circular(16),
                                     child: Image.asset(
                                       'assets/icons/app_logo.png',
                                       fit: BoxFit.cover,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
                                 const Text(
                                   'NiceGas BioCNG',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppTheme.textPrimary,
                                     fontSize: 26,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.5,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                Text(
+                                const Text(
                                   'Sistem Pemantauan Produksi Gas Industri',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.55),
+                                    color: AppTheme.textSecondary,
                                     fontSize: 13,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ),
 
-                          const SizedBox(height: 40),
+                          const SizedBox(height: 36),
 
-                          // Card login
-                          Container(
-                            padding: const EdgeInsets.all(24),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F1A),
-                              borderRadius: BorderRadius.circular(24),
-                              border: Border.all(
-                                color:
-                                    AppTheme.primary.withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
+                          // Form Content
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                                 const Text(
                                   'Login Operator',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppTheme.textPrimary,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
+                                const SizedBox(height: 6),
+                                const Text(
                                   'Masukkan kredensial untuk mengakses dashboard',
                                   style: TextStyle(
-                                    color:
-                                        Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                    fontSize: 13,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 28),
 
                                 // Username
-                                _DarkField(
+                                _LightField(
                                   controller: _usernameCtrl,
                                   label: 'Username',
                                   icon: Icons.person_outline_rounded,
@@ -200,10 +193,10 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                       : null,
                                   textInputAction: TextInputAction.next,
                                 ),
-                                const SizedBox(height: 14),
+                                const SizedBox(height: 16),
 
                                 // Password
-                                _DarkField(
+                                _LightField(
                                   controller: _passwordCtrl,
                                   label: 'Password',
                                   icon: Icons.lock_outline_rounded,
@@ -218,7 +211,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                       _obscure
                                           ? Icons.visibility_outlined
                                           : Icons.visibility_off_outlined,
-                                      color: Colors.white38,
+                                      color: AppTheme.textSecondary,
                                       size: 20,
                                     ),
                                     onPressed: () =>
@@ -228,31 +221,32 @@ class _LoginPageState extends ConsumerState<LoginPage>
 
                                 // Error
                                 if (auth.error != null) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 10),
+                                        horizontal: 14, vertical: 12),
                                     decoration: BoxDecoration(
                                       color: AppTheme.statusCritical
-                                          .withValues(alpha: 0.12),
+                                          .withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
                                         color: AppTheme.statusCritical
-                                            .withValues(alpha: 0.4),
+                                            .withValues(alpha: 0.3),
                                       ),
                                     ),
                                     child: Row(
                                       children: [
                                         const Icon(Icons.error_outline_rounded,
                                             color: AppTheme.statusCritical,
-                                            size: 16),
-                                        const SizedBox(width: 8),
+                                            size: 18),
+                                        const SizedBox(width: 10),
                                         Expanded(
                                           child: Text(
                                             auth.error!,
                                             style: const TextStyle(
                                               color: AppTheme.statusCritical,
                                               fontSize: 13,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
                                         ),
@@ -261,7 +255,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                   ),
                                 ],
 
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 28),
 
                                 // Login button
                                 SizedBox(
@@ -270,48 +264,33 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                     onPressed:
                                         auth.isLoading ? null : _submit,
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
+                                      backgroundColor: AppTheme.primary,
+                                      foregroundColor: Colors.white,
+                                      disabledBackgroundColor: AppTheme.primary.withValues(alpha: 0.6),
+                                      elevation: 0,
                                       padding: EdgeInsets.zero,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
                                     ),
-                                    child: Ink(
-                                      decoration: BoxDecoration(
-                                        gradient: auth.isLoading
-                                            ? null
-                                            : LinearGradient(
-                                                colors: [
-                                                  AppTheme.primary,
-                                                  AppTheme.primaryDark
-                                                ],
+                                    child: Center(
+                                      child: auth.isLoading
+                                          ? const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2.5,
                                               ),
-                                        color: auth.isLoading
-                                            ? Colors.white12
-                                            : null,
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Center(
-                                        child: auth.isLoading
-                                            ? const SizedBox(
-                                                width: 22,
-                                                height: 22,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                  strokeWidth: 2.5,
-                                                ),
-                                              )
-                                            : const Text(
-                                                'Masuk',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 15,
-                                                ),
+                                            )
+                                          : const Text(
+                                              'Masuk',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 15,
+                                                letterSpacing: 0.5,
                                               ),
-                                      ),
+                                            ),
                                     ),
                                   ),
                                 ),
@@ -364,26 +343,25 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                 ],
                               ],
                             ),
-                          ),
 
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 32),
 
                           // Demo hint
                           Center(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 8),
+                                  horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.05),
+                                color: AppTheme.borderColor.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.1)),
                               ),
-                              child: Text(
+                              child: const Text(
                                 'Demo: operator1 / niceg4s',
                                 style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  fontSize: 12,
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -396,30 +374,31 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
             ),
           ),
-        ],
-      ),
     );
   }
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────────────────────
 
-class _GlowCircle extends StatelessWidget {
+class _SubtleGeometry extends StatelessWidget {
   final Color color;
   final double size;
-  const _GlowCircle({required this.color, required this.size});
+  const _SubtleGeometry({required this.color, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
+      ),
     );
   }
 }
 
-class _DarkField extends StatelessWidget {
+class _LightField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
@@ -429,7 +408,7 @@ class _DarkField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final Widget? suffix;
 
-  const _DarkField({
+  const _LightField({
     required this.controller,
     required this.label,
     required this.icon,
@@ -448,29 +427,26 @@ class _DarkField extends StatelessWidget {
       validator: validator,
       textInputAction: textInputAction,
       onFieldSubmitted: onSubmitted,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
       decoration: InputDecoration(
         labelText: label,
         labelStyle:
-            TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+            const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
         prefixIcon: Icon(icon, color: AppTheme.primary, size: 20),
         suffixIcon: suffix,
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.07),
+        fillColor: const Color(0xFFF8FAFC), // Slate 50
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: const BorderSide(color: AppTheme.borderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: Colors.white.withValues(alpha: 0.15)),
+          borderSide: const BorderSide(color: AppTheme.borderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppTheme.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -479,7 +455,7 @@ class _DarkField extends StatelessWidget {
         errorStyle:
             const TextStyle(color: AppTheme.statusCritical, fontSize: 11),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }

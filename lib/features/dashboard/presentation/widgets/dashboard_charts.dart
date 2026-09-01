@@ -218,7 +218,8 @@ class TelemetryTrendChart extends StatelessWidget {
                       getTitlesWidget: (v, _) => Text(
                         v.toStringAsFixed(0),
                         style: const TextStyle(
-                            fontSize: 8, color: AppTheme.textSecondary),
+                            fontFamily: 'monospace',
+                            fontSize: 9, color: AppTheme.textSecondary),
                       ),
                     ),
                   ),
@@ -233,45 +234,38 @@ class TelemetryTrendChart extends StatelessWidget {
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipColor: (_) => const Color(0xFF1C1A18),
                     tooltipRoundedRadius: 8,
-                    getTooltipItems: (touchedSpots) => touchedSpots
-                        .map((s) => LineTooltipItem(
-                              '${s.y.toStringAsFixed(2)} $unit',
-                              TextStyle(
-                                  color: color,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 11),
-                            ))
-                        .toList(),
+                      getTooltipItems: (touchedSpots) => touchedSpots
+                          .map((s) => LineTooltipItem(
+                                '${s.y.toStringAsFixed(2)} $unit',
+                                TextStyle(
+                                    color: color,
+                                    fontFamily: 'monospace',
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11),
+                              ))
+                          .toList(),
                   ),
                 ),
                 lineBarsData: [
                   LineChartBarData(
                     spots: spots,
-                    isCurved: true,
-                    curveSmoothness: 0.35,
+                    isCurved: false, // Industrial charts typically use straight lines
                     color: color,
-                    barWidth: 2,
-                    isStrokeCapRound: true,
+                    barWidth: 1.5,
+                    isStrokeCapRound: false,
                     dotData: FlDotData(
                       show: true,
                       getDotPainter: (spot, percent, barData, idx) =>
                           FlDotCirclePainter(
-                        radius: idx == spots.length - 1 ? 3.5 : 0,
+                        radius: idx == spots.length - 1 ? 3.0 : 0,
                         color: color,
-                        strokeWidth: 1.5,
+                        strokeWidth: 1.0,
                         strokeColor: AppTheme.surface,
                       ),
                     ),
                     belowBarData: BarAreaData(
                       show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          color.withValues(alpha: 0.2),
-                          color.withValues(alpha: 0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
+                      color: color.withValues(alpha: 0.05),
                     ),
                   ),
                 ],
@@ -419,6 +413,7 @@ class GasFlowBarChart extends StatelessWidget {
                       '${rod.toY.toStringAsFixed(1)} Nm³/h',
                       const TextStyle(
                           color: AppTheme.primary,
+                          fontFamily: 'monospace',
                           fontWeight: FontWeight.w700,
                           fontSize: 11),
                     ),
@@ -436,7 +431,7 @@ class GasFlowBarChart extends StatelessWidget {
   static Widget _leftTitle(double v, TitleMeta _) => Text(
         v.toInt().toString(),
         style:
-            const TextStyle(fontSize: 8, color: AppTheme.textSecondary),
+            const TextStyle(fontFamily: 'monospace', fontSize: 9, color: AppTheme.textSecondary),
       );
 }
 
@@ -474,14 +469,14 @@ class DeviceStatusDonut extends StatelessWidget {
                   PieChartSectionData(
                     value: online.toDouble(),
                     color: AppTheme.statusOptimal,
-                    radius: 18,
+                    radius: 10,
                     showTitle: false,
                   ),
                   if (offline > 0)
                     PieChartSectionData(
                       value: offline.toDouble(),
                       color: AppTheme.statusCritical,
-                      radius: 18,
+                      radius: 10,
                       showTitle: false,
                     ),
                 ],
@@ -614,12 +609,7 @@ class DashboardChartsSection extends StatelessWidget {
                 maxY: 42,
                 isLive: isLive,
               ),
-              const SizedBox(height: 10),
-              DeviceStatusDonut(
-                online: onlineDevices,
-                offline: offlineDevices,
-                total: totalDevices,
-              ),
+
             ] else ...[
               // 2-column layout for tablet/desktop
               Row(
@@ -652,6 +642,7 @@ class DashboardChartsSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+<<<<<<< HEAD
               Row(
                 children: [
                   Expanded(
@@ -675,6 +666,17 @@ class DashboardChartsSection extends StatelessWidget {
                     ),
                   ),
                 ],
+=======
+              // Temperature takes full width in this row now since the donut is removed
+              TelemetryTrendChart(
+                history: history,
+                metricKey: 'temperature',
+                unit: '°C',
+                color: AppTheme.primary,
+                title: 'Suhu Digester',
+                minY: 35,
+                maxY: 42,
+>>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
               ),
             ],
 

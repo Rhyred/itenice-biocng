@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
+import '../../../../core/widgets/sub_header.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STATE LOKAL CHAT
@@ -99,16 +100,7 @@ class _AiAssistantPageState extends ConsumerState<AiAssistantPage> {
     final messages = ref.watch(_aiChatProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Pemeliharaan AI'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
-          ),
-        ],
-      ),
+      appBar: const SubHeader(title: 'Pemeliharaan AI'),
       body: Column(
         children: [
           Expanded(
@@ -564,7 +556,7 @@ class _ChatInputRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppTheme.surface,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 116), // Tambah padding bawah
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

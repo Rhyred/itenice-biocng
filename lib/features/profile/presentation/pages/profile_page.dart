@@ -4,6 +4,7 @@ import 'package:itenice_bio_cng/features/connection/presentation/pages/connectio
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/widgets/sub_header.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -16,26 +17,9 @@ class ProfilePage extends ConsumerWidget {
     final isLocalMonitoring = auth.isLocalMonitoring;
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/icons/app_logo.png',
-                width: 28,
-                height: 28,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Text('Profil'),
-          ],
-        ),
-      ),
+      appBar: const SubHeader(title: 'Profil'),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 116),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

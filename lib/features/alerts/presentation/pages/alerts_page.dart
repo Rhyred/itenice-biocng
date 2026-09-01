@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/alert_list_response.dart';
 import '../providers/alerts_provider.dart';
 import '../../../../core/config/app_config.dart';
+import '../../../../core/widgets/sub_header.dart';
 
 class AlertsPage extends ConsumerStatefulWidget {
   final String? deviceId;
@@ -62,8 +64,9 @@ class _AlertsPageState extends ConsumerState<AlertsPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Riwayat Alert'),
+      backgroundColor: AppTheme.background,
+      appBar: SubHeader(
+        title: 'Log System',
         actions: [
           if (AppConfig.isDemoMode)
             const Center(
@@ -119,12 +122,15 @@ class _FilterSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      color: Theme.of(context).primaryColor.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        border: Border(bottom: BorderSide(color: AppTheme.borderColor, width: 1)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Severity', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Text('SEVERITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textSecondary, letterSpacing: 1.0)),
           const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -140,27 +146,27 @@ class _FilterSection extends StatelessWidget {
                   label: 'CRITICAL',
                   isSelected: selectedSeverity == 'CRITICAL',
                   onSelected: (_) => onSeverityChanged('CRITICAL'),
-                  color: Colors.red,
+                  color: AppTheme.statusCritical,
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'WARNING',
                   isSelected: selectedSeverity == 'WARNING',
                   onSelected: (_) => onSeverityChanged('WARNING'),
-                  color: Colors.orange,
+                  color: AppTheme.statusWarning,
                 ),
                 const SizedBox(width: 8),
                 _FilterChip(
                   label: 'INFO',
                   isSelected: selectedSeverity == 'INFO',
                   onSelected: (_) => onSeverityChanged('INFO'),
-                  color: Colors.blue,
+                  color: AppTheme.primary,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          const Text('Status', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 16),
+          const Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textSecondary, letterSpacing: 1.0)),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -208,11 +214,14 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: isSelected,
       onSelected: onSelected,
-      selectedColor: color?.withValues(alpha: 0.2) ?? Theme.of(context).primaryColor.withValues(alpha: 0.2),
-      checkmarkColor: color ?? Theme.of(context).primaryColor,
+      selectedColor: color?.withValues(alpha: 0.1) ?? AppTheme.primary.withValues(alpha: 0.1),
+      checkmarkColor: color ?? AppTheme.primary,
+      backgroundColor: AppTheme.background,
+      side: BorderSide(color: isSelected ? (color ?? AppTheme.primary).withValues(alpha: 0.5) : AppTheme.borderColor),
       labelStyle: TextStyle(
-        color: isSelected ? (color ?? Theme.of(context).primaryColor) : Colors.black87,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? (color ?? AppTheme.primary) : AppTheme.textSecondary,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        fontSize: 12,
       ),
     );
   }
@@ -227,7 +236,7 @@ class _AlertList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 116),
       itemCount: response.data.length + (response.meta.currentPage < response.meta.totalPages ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == response.data.length) {
@@ -258,10 +267,18 @@ class _AlertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final severityColor = _getSeverityColor(alert.severity);
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderColor),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -272,38 +289,39 @@ class _AlertCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: severityColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: severityColor.withValues(alpha: 0.2)),
                   ),
                   child: Text(
-                    alert.severity,
-                    style: TextStyle(color: severityColor, fontWeight: FontWeight.bold, fontSize: 12),
+                    alert.severity.toUpperCase(),
+                    style: TextStyle(color: severityColor, fontWeight: FontWeight.w700, fontSize: 10, letterSpacing: 0.5),
                   ),
                 ),
                 Text(
                   _formatDateTime(alert.timestamp.toLocal()),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontFamily: 'monospace', fontWeight: FontWeight.w600),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               alert.message,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Component: ${alert.component}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  'NODE: ${alert.component}',
+                  style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  'Status: ${alert.status}',
+                  alert.status.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 12,
-                    color: alert.status == 'ACTIVE' ? Colors.red : Colors.green,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                    color: alert.status == 'ACTIVE' ? AppTheme.statusCritical : AppTheme.statusOptimal,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
@@ -317,13 +335,13 @@ class _AlertCard extends StatelessWidget {
   Color _getSeverityColor(String severity) {
     switch (severity.toUpperCase()) {
       case 'CRITICAL':
-        return Colors.red;
+        return AppTheme.statusCritical;
       case 'WARNING':
-        return Colors.orange;
+        return AppTheme.statusWarning;
       case 'INFO':
-        return Colors.blue;
+        return AppTheme.primary;
       default:
-        return Colors.grey;
+        return AppTheme.textSecondary;
     }
   }
 
