@@ -642,32 +642,6 @@ class DashboardChartsSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-<<<<<<< HEAD
-              Row(
-                children: [
-                  Expanded(
-                    child: TelemetryTrendChart(
-                      history: history,
-                      metricKey: 'temperature',
-                      unit: '°C',
-                      color: AppTheme.primary,
-                      title: 'Suhu Digester',
-                      minY: 35,
-                      maxY: 42,
-                      isLive: isLive,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DeviceStatusDonut(
-                      online: onlineDevices,
-                      offline: offlineDevices,
-                      total: totalDevices,
-                    ),
-                  ),
-                ],
-=======
-              // Temperature takes full width in this row now since the donut is removed
               TelemetryTrendChart(
                 history: history,
                 metricKey: 'temperature',
@@ -676,7 +650,7 @@ class DashboardChartsSection extends StatelessWidget {
                 title: 'Suhu Digester',
                 minY: 35,
                 maxY: 42,
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
+                isLive: isLive,
               ),
             ],
 

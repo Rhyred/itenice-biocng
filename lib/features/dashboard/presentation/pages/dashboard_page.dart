@@ -10,13 +10,9 @@ import '../../../../shared/models/alert_model.dart';
 import '../../../../shared/models/telemetry_model.dart';
 import '../../../shell/main_shell_page.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-<<<<<<< HEAD
 import '../../../../core/mqtt/mqtt_provider.dart';
 import '../../../../core/mqtt/mqtt_state.dart';
-=======
-import '../../../../core/widgets/sub_header.dart';
 import '../../../telemetry/presentation/pages/telemetry_history_page.dart';
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -44,24 +40,30 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Widget _buildScaffold(BuildContext context, WidgetRef ref, ProjectModel project, AsyncValue<DashboardSummary> summaryAsync) {
     return Scaffold(
-<<<<<<< HEAD
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        backgroundColor: AppTheme.surface,
+        foregroundColor: AppTheme.textPrimary,
+        elevation: 0,
+        shape: const Border(bottom: BorderSide(color: AppTheme.borderColor, width: 1.0)),
         title: Row(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 'assets/icons/app_logo.png',
-                width: 30,
-                height: 30,
+                width: 28,
+                height: 28,
                 fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const Icon(Icons.energy_savings_leaf, color: AppTheme.primary, size: 28),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 project.name,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -90,10 +92,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ),
         ],
       ),
-=======
-      backgroundColor: AppTheme.background,
-      appBar: const SubHeader(title: 'Dashboard'),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
       body: summaryAsync.when(
         data: (summary) => _buildBody(context, ref, project, summary),
         loading: () => const Center(child: CircularProgressIndicator(color: AppTheme.primary)),
@@ -102,7 +100,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     );
   }
 
-<<<<<<< HEAD
   // ── BODY ──────────────────────────────────────────────────────────────────
   Widget _buildBody(
     BuildContext context,
@@ -140,11 +137,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         mqttState.realtimeTelemetry.keys.any((k) => k.startsWith('$mainDeviceId:'));
 
     final auth = ref.watch(authProvider);
-
-=======
-  Widget _buildBody(BuildContext context, WidgetRef ref, ProjectModel project, DashboardSummary summary) {
-    final demoState = AppConfig.isDemoMode ? ref.watch(demoDataControllerProvider) : null;
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
     return Stack(
       children: [
         RefreshIndicator(
@@ -156,7 +148,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-<<<<<<< HEAD
                 if (auth.isLocalMonitoring) ...[
                   _LocalMonitoringBanner(
                     connectionStatus: mqttState.connectionStatus,
@@ -183,13 +174,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   totalDevices: mergedSummary.totalDevices,
                   isLive: isChartsLive,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
 
-                // 4. AI Greeting Bar
-                _AiGreetingBar(
-                  onTap: () =>
-                      ref.read(shellTabProvider.notifier).state = 1,
-                  summary: mergedSummary,
+                // 4. Device Status + AI Greeting Bar
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _DeviceStatusSmallCard(summary: mergedSummary)),
+                    const SizedBox(width: 10),
+                    Expanded(child: _AiGreetingBar(onTap: () => ref.read(shellTabProvider.notifier).state = 2, summary: mergedSummary)),
+                  ],
                 ),
                 const SizedBox(height: 12),
 
@@ -205,28 +199,6 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
                 // 6. Riwayat Log
                 _RiwayatLog(alerts: mergedSummary.recentAlerts),
-=======
-                if (summary.criticalAlerts > 0 || summary.warningAlerts > 0) _AlertBanner(summary: summary),
-                if (summary.criticalAlerts > 0 || summary.warningAlerts > 0) const SizedBox(height: 12),
-                _SystemStatusCard(summary: summary),
-                const SizedBox(height: 12),
-                if (demoState != null) ...[
-                  DashboardChartsSection(demoState: demoState, onlineDevices: summary.onlineDevices, offlineDevices: summary.offlineDevices, totalDevices: summary.totalDevices),
-                  const SizedBox(height: 4),
-                ],
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _DeviceStatusSmallCard(summary: summary)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _AiGreetingBar(onTap: () => ref.read(shellTabProvider.notifier).state = 1, summary: summary)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _DigitalTwinExplorer(summary: summary, selectedNodeIndex: _selectedNodeIndex, nodeLabels: _nodeLabels, onNodeSelected: (i) => setState(() => _selectedNodeIndex = i)),
-                const SizedBox(height: 12),
-                _RiwayatLog(alerts: summary.recentAlerts),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                 const SizedBox(height: 12),
               ],
             ),
@@ -254,6 +226,29 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ElevatedButton(onPressed: () => ref.invalidate(dashboardDataProvider), child: const Text('Coba Lagi')),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Keluar / Logout'),
+        content: const Text('Apakah Anda yakin ingin keluar dari akun operator?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(authProvider.notifier).logout();
+            },
+            child: const Text('Keluar', style: TextStyle(color: AppTheme.statusCritical)),
+          ),
+        ],
       ),
     );
   }
@@ -410,40 +405,30 @@ class _AiGreetingBar extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 /// 4. Sensor Node Digital Twin Explorer
 class _DigitalTwinExplorer extends ConsumerWidget {
-=======
-class _DigitalTwinExplorer extends StatelessWidget {
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
   final DashboardSummary summary;
   final int selectedNodeIndex;
   final List<String> nodeLabels;
   final ValueChanged<int> onNodeSelected;
   const _DigitalTwinExplorer({required this.summary, required this.selectedNodeIndex, required this.nodeLabels, required this.onNodeSelected});
+
   @override
-<<<<<<< HEAD
   Widget build(BuildContext context, WidgetRef ref) {
-    // Ambil telemetry sesuai node (index fallback)
     final telemetry = summary.latestTelemetry.isNotEmpty
         ? (selectedNodeIndex < summary.latestTelemetry.length
             ? summary.latestTelemetry[selectedNodeIndex]
             : summary.latestTelemetry.first)
         : null;
 
-    // Resolve status node
-=======
-  Widget build(BuildContext context) {
-    final telemetry = summary.latestTelemetry.isNotEmpty ? (selectedNodeIndex < summary.latestTelemetry.length ? summary.latestTelemetry[selectedNodeIndex] : summary.latestTelemetry.first) : null;
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
     final nodeKeywords = ['biodigester', 'purifikasi', 'kompresi'];
     final keyword = nodeKeywords[selectedNodeIndex];
     TelemetryModel? matchedTelemetry;
     for (final t in summary.latestTelemetry) {
       if ((t.component ?? '').toLowerCase().contains(keyword)) { matchedTelemetry = t; break; }
     }
-<<<<<<< HEAD
-    final displayTelemetry = matchedTelemetry ?? telemetry;
+    matchedTelemetry ??= telemetry;
+    final displayTelemetry = matchedTelemetry;
 
     return _AppCard(
       padding: EdgeInsets.zero,
@@ -457,10 +442,10 @@ class _DigitalTwinExplorer extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'SENSOR NODE DIGITAL TWIN EXPLORER',
+                  'PROCESS PIPELINE (DIGITAL TWIN)',
                   style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 0.7,
+                    fontSize: 10,
+                    letterSpacing: 1.0,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textSecondary,
                   ),
@@ -477,101 +462,113 @@ class _DigitalTwinExplorer extends StatelessWidget {
 
           // Tab Chips
           SizedBox(
-            height: 40,
+            height: 36,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: nodeLabels.length,
-              separatorBuilder: (_, index) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(Icons.arrow_right_alt_rounded, color: AppTheme.borderColor, size: 20),
+              ),
               itemBuilder: (context, i) {
                 final selected = i == selectedNodeIndex;
                 return GestureDetector(
                   onTap: () => onNodeSelected(i),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? AppTheme.primary
-                          : AppTheme.background,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: selected
-                            ? AppTheme.primary
-                            : AppTheme.borderColor,
-=======
-    matchedTelemetry ??= telemetry;
-    return _AppCard(
-      padding: EdgeInsets.zero,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Padding(padding: EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Text('PROCESS PIPELINE (DIGITAL TWIN)', style: TextStyle(fontSize: 10, letterSpacing: 1.0, fontWeight: FontWeight.w700, color: AppTheme.textSecondary))),
-        SizedBox(height: 36, child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: nodeLabels.length,
-          separatorBuilder: (_, __) => const Padding(padding: EdgeInsets.symmetric(horizontal: 4), child: Icon(Icons.arrow_right_alt_rounded, color: AppTheme.borderColor, size: 20)),
-          itemBuilder: (context, i) {
-            final selected = i == selectedNodeIndex;
-            return GestureDetector(
-              onTap: () => onNodeSelected(i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: selected ? AppTheme.primary : AppTheme.surface,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: selected ? AppTheme.primary : AppTheme.borderColor),
-                ),
-                child: Center(child: Text(nodeLabels[i].split(':').last.trim().toUpperCase(), style: TextStyle(fontSize: 11, letterSpacing: 0.5, fontWeight: FontWeight.w600, color: selected ? Colors.white : AppTheme.textSecondary))),
-              ),
-            );
-          },
-        )),
-        const SizedBox(height: 16),
-        Container(height: 120, margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(color: AppTheme.background, borderRadius: BorderRadius.circular(6), border: Border.all(color: AppTheme.borderColor)),
-          child: const Center(child: Text('[3D Asset Placeholder]', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontStyle: FontStyle.italic)))),
-        const SizedBox(height: 12),
-        if (matchedTelemetry != null && matchedTelemetry.metrics.isNotEmpty)
-          Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              ...matchedTelemetry.metrics.entries.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: GestureDetector(
-                  onTap: () {
-                    final devId = matchedTelemetry?.deviceId;
-                    if (devId != null) {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => TelemetryHistoryPage(deviceId: devId),
-                      ));
-                    }
-                  },
-                  child: Container(
-                    color: Colors.transparent,
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Row(
-                        children: [
-                          Text(e.key, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.open_in_new_rounded, size: 12, color: AppTheme.primary),
-                        ],
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
+                      color: selected ? AppTheme.primary : AppTheme.surface,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: selected ? AppTheme.primary : AppTheme.borderColor),
+                    ),
+                    child: Center(
+                      child: Text(
+                        nodeLabels[i].split(':').last.trim().toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 0.5,
+                          fontWeight: FontWeight.w600,
+                          color: selected ? Colors.white : AppTheme.textSecondary,
+                        ),
                       ),
-                      Text('${e.value.value.toStringAsFixed(1)} ${e.value.unit}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
-                    ]),
+                    ),
                   ),
-                ),
-              )),
-            ]))
-        else
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Tidak ada data metrik untuk node ini.', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary))),
-        const SizedBox(height: 10),
-        Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), child: _NodeStatusRow(status: matchedTelemetry?.status ?? 'unknown')),
-      ]),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            height: 120,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AppTheme.borderColor),
+            ),
+            child: const Center(
+              child: Text('[3D Asset Placeholder]', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontStyle: FontStyle.italic)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (matchedTelemetry != null && matchedTelemetry.metrics.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...matchedTelemetry.metrics.entries.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: GestureDetector(
+                      onTap: () {
+                        final devId = matchedTelemetry?.deviceId;
+                        if (devId != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TelemetryHistoryPage(deviceId: devId),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        color: Colors.transparent,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Text(e.key, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.open_in_new_rounded, size: 12, color: AppTheme.primary),
+                              ],
+                            ),
+                            Text(
+                              '${e.value.value.toStringAsFixed(1)} ${e.value.unit}',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )),
+                ],
+              ),
+            )
+          else
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text('Tidak ada data metrik untuk node ini.', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+            ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _NodeStatusRow(status: matchedTelemetry?.status ?? 'unknown'),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -667,12 +664,7 @@ class _AppCard extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 /// Format waktu relatif
-=======
-
-
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
 String _relativeTime(DateTime dt) {
   final diff = DateTime.now().difference(dt);
   if (diff.inMinutes < 1) return 'Baru saja';

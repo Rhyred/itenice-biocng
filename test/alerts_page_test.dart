@@ -65,8 +65,7 @@ void main() {
 
     expect(find.text('High pressure'), findsOneWidget);
     expect(find.text('CRITICAL'), findsNWidgets(2)); // Filter chip and Alert card
-    expect(find.text('ACTIVE'), findsOneWidget); // Filter chip
-    expect(find.text('Status: ACTIVE'), findsOneWidget); // Alert card
+    expect(find.text('ACTIVE'), findsNWidgets(2)); // Filter chip and Alert card
   });
 
   testWidgets('AlertsPage shows empty state', (WidgetTester tester) async {

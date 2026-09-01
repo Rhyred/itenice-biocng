@@ -4,7 +4,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../providers/device_provider.dart';
 import '../../../../shared/models/device_model.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/mqtt/mqtt_provider.dart';
 import 'device_detail_page.dart';
 import '../../../../core/widgets/sub_header.dart';
@@ -61,7 +60,6 @@ class _DeviceList extends ConsumerWidget {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final device = devices[index];
-<<<<<<< HEAD
         final realtimeStatus = mqttState.deviceStatus[device.id];
         final displayStatus = realtimeStatus ?? device.status;
 
@@ -70,50 +68,29 @@ class _DeviceList extends ConsumerWidget {
             color: AppTheme.surface,
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             border: Border.all(color: AppTheme.borderColor),
-=======
-        return Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppTheme.borderColor),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))
             ],
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             leading: CircleAvatar(
               backgroundColor: _getStatusColor(displayStatus).withValues(alpha: 0.1),
               child: Icon(
-<<<<<<< HEAD
-                Icons.developer_board,
-                color: _getStatusColor(displayStatus),
-=======
                 Icons.memory_rounded,
-                color: _getStatusColor(device.status),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
+                color: _getStatusColor(displayStatus),
               ),
             ),
             title: Text(
               device.name,
-<<<<<<< HEAD
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary),
-=======
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textPrimary),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-<<<<<<< HEAD
-                Text('Tipe: ${device.type}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                 const SizedBox(height: 4),
-=======
-                const SizedBox(height: 4),
-                Text('Type: ${device.type}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                Text('Tipe: ${device.type}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                 const SizedBox(height: 6),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                 Row(
                   children: [
                     Container(
@@ -126,33 +103,20 @@ class _DeviceList extends ConsumerWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-<<<<<<< HEAD
-                      displayStatus,
+                      displayStatus.toUpperCase(),
                       style: TextStyle(
                         color: _getStatusColor(displayStatus),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-=======
-                      device.status.toUpperCase(),
-                      style: TextStyle(
-                        color: _getStatusColor(device.status),
                         fontWeight: FontWeight.w700,
                         fontSize: 10,
                         letterSpacing: 0.5,
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                       ),
                     ),
                     const SizedBox(width: 12),
                     if (device.lastSeen != null)
                       Expanded(
                         child: Text(
-<<<<<<< HEAD
-                          'Update: ${_formatDate(device.lastSeen!)}',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-=======
                           'LAST SEEN: ${_formatDate(device.lastSeen!)}',
                           style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary, fontFamily: 'monospace', fontWeight: FontWeight.w600),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -160,11 +124,7 @@ class _DeviceList extends ConsumerWidget {
                 ),
               ],
             ),
-<<<<<<< HEAD
-            trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
-=======
             trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textSecondary),
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
             onTap: () {
               Navigator.push(
                 context,
@@ -180,25 +140,17 @@ class _DeviceList extends ConsumerWidget {
   }
 
   Color _getStatusColor(String status) {
-<<<<<<< HEAD
-    final s = status.toUpperCase();
-    if (s == 'ONLINE' || s == 'CONNECTED') {
-      return AppTheme.statusOptimal;
-    } else if (s == 'OFFLINE' || s == 'DISCONNECTED') {
-      return AppTheme.statusCritical;
-    } else {
-      return AppTheme.statusWarning;
-=======
     switch (status.toUpperCase()) {
       case 'ONLINE':
+      case 'CONNECTED':
       case 'NORMAL':
         return AppTheme.statusOptimal;
       case 'OFFLINE':
+      case 'DISCONNECTED':
       case 'CRITICAL':
         return AppTheme.statusCritical;
       default:
         return AppTheme.statusWarning;
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
     }
   }
 

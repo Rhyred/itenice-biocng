@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
-<<<<<<< HEAD
 import '../auth/presentation/providers/auth_provider.dart';
-=======
 import '../../core/widgets/global_header.dart';
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
 import '../dashboard/presentation/pages/dashboard_page.dart';
 import '../ai/presentation/pages/ai_assistant_page.dart';
 import '../profile/presentation/pages/profile_page.dart';
@@ -33,7 +30,6 @@ class MainShellPage extends ConsumerWidget {
     final currentIndex = ref.watch(shellTabProvider);
     final isLocalMonitoring = ref.watch(authProvider).isLocalMonitoring;
 
-<<<<<<< HEAD
     if (!isLocalMonitoring) {
       // Auto-select project pertama dalam mode Authenticated / Demo
       ref.listen<AsyncValue>(projectProvider, (_, next) {
@@ -44,16 +40,6 @@ class MainShellPage extends ConsumerWidget {
                 response.data.first;
           }
         });
-=======
-    // Auto-select project pertama
-    ref.listen<AsyncValue>(projectProvider, (_, next) {
-      next.whenData((response) {
-        if (ref.read(selectedProjectProvider) == null &&
-            response.data.isNotEmpty) {
-          ref.read(selectedProjectProvider.notifier).state =
-              response.data.first;
-        }
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
       });
     }
 

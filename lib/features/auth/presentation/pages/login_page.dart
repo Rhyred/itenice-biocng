@@ -57,58 +57,34 @@ class _LoginPageState extends ConsumerState<LoginPage>
     final auth = ref.watch(authProvider);
 
     return Scaffold(
-<<<<<<< HEAD
-      backgroundColor: const Color(0xFF1A1210),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background decorative circles
           Positioned(
-            top: -80,
-            right: -60,
-            child: _GlowCircle(
-                color: AppTheme.primary.withValues(alpha: 0.25), size: 280),
-          ),
-          Positioned(
-            bottom: -100,
-            left: -80,
-            child: _GlowCircle(
-                color: AppTheme.primaryDark.withValues(alpha: 0.2), size: 320),
-          ),
-          Positioned(
-            top: 40,
+            top: 16,
             right: 16,
-            child: IconButton(
-              icon: const Icon(Icons.settings_ethernet_rounded, color: Colors.white70),
-              tooltip: 'Pengaturan Koneksi Plant',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ConnectionSetupPage(isEditing: true),
-                  ),
-                );
-              },
+            child: SafeArea(
+              child: IconButton(
+                icon: const Icon(Icons.settings_ethernet_rounded, color: AppTheme.textSecondary),
+                tooltip: 'Pengaturan Koneksi Plant',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ConnectionSetupPage(isEditing: true),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-
-          // Main content
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
                 child: FadeTransition(
                   opacity: _fade,
                   child: SlideTransition(
-=======
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-            child: FadeTransition(
-              opacity: _fade,
-              child: SlideTransition(
->>>>>>> 9e97f85e88c3ae5e586141043baf324e1eae174f
                     position: _slide,
                     child: Form(
                       key: _formKey,
@@ -314,7 +290,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         Text(
                                           'Continue as Local Monitor',
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: AppTheme.textPrimary,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 13,
                                           ),
@@ -322,7 +298,7 @@ class _LoginPageState extends ConsumerState<LoginPage>
                                         Text(
                                           'Local realtime monitoring only',
                                           style: TextStyle(
-                                            color: Colors.white54,
+                                            color: AppTheme.textSecondary,
                                             fontSize: 11,
                                           ),
                                         ),
@@ -374,29 +350,13 @@ class _LoginPageState extends ConsumerState<LoginPage>
               ),
             ),
           ),
+        ],
+      ),
     );
   }
 }
 
 // ── Sub-widgets ────────────────────────────────────────────────────────────────
-
-class _SubtleGeometry extends StatelessWidget {
-  final Color color;
-  final double size;
-  const _SubtleGeometry({required this.color, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
-    );
-  }
-}
 
 class _LightField extends StatelessWidget {
   final TextEditingController controller;
