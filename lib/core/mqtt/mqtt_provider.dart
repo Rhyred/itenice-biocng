@@ -18,7 +18,7 @@ final mqttProvider = StateNotifierProvider<MqttNotifier, MqttState>((ref) {
 
 class MqttNotifier extends StateNotifier<MqttState> {
   final Ref _ref;
-  String? _currentProjectId;
+  String? _currentProjectName;
 
   int _primaryReconnectAttempts = 0;
   static const int _maxPrimaryReconnectAttempts = 3;
@@ -76,14 +76,14 @@ class MqttNotifier extends StateNotifier<MqttState> {
 
     _projectSub = _ref.listen(selectedProjectProvider, (previous, next) {
       if (!mounted) return;
-      final newProjectId = next?.id;
-      if (_currentProjectId != newProjectId) {
-        if (_currentProjectId != null) {
-          _unsubscribeFromProject(_currentProjectId!);
+      final newProjectName = next?.name;
+      if (_currentProjectName != newProjectName) {
+        if (_currentProjectName != null) {
+          _unsubscribeFromProject(_currentProjectName!);
         }
-        _currentProjectId = newProjectId;
-        if (_currentProjectId != null) {
-          _subscribeToProject(_currentProjectId!);
+        _currentProjectName = newProjectName;
+        if (_currentProjectName != null) {
+          _subscribeToProject(_currentProjectName!);
           // Clear previous project telemetry and status
           state = state.copyWith(
             realtimeTelemetry: {},
@@ -94,7 +94,7 @@ class MqttNotifier extends StateNotifier<MqttState> {
       }
     });
 
-    _currentProjectId = _ref.read(selectedProjectProvider)?.id;
+    _currentProjectName = _ref.read(selectedProjectProvider)?.name;
     
     _connect();
   }
@@ -116,7 +116,7 @@ class MqttNotifier extends StateNotifier<MqttState> {
       realtimeEvents: {},
     );
 
-    _currentProjectId = _ref.read(selectedProjectProvider)?.id;
+    _currentProjectName = _ref.read(selectedProjectProvider)?.name;
 
     _connect();
   }
@@ -288,23 +288,37 @@ class MqttNotifier extends StateNotifier<MqttState> {
   }
 
   void _resubscribe() {
-    if (_currentProjectId != null) {
-      _subscribeToProject(_currentProjectId!);
+    if (_currentProjectName != null) {
+      _subscribeToProject(_currentProjectName!);
     }
   }
 
-  void _subscribeToProject(String projectId) {
+  void _subscribeToProject(String projectName) {
     final mqttService = _ref.read(mqttServiceProvider);
-    mqttService.subscribe('nicegas/$projectId/+/telemetry/+');
-    mqttService.subscribe('nicegas/$projectId/+/event/+');
-    mqttService.subscribe('nicegas/$projectId/+/status/connection');
+    mqttService.subscribe('nicegas/$projectName/+/telemetry/+');
+    mqttService.subscribe('nicegas/$projectName/+/event/+');
+    mqttService.subscribe('nicegas/$projectName/+/status/connection');
   }
 
-  void _unsubscribeFromProject(String projectId) {
+  void _unsubscribeFromProject(String projectName) {
     final mqttService = _ref.read(mqttServiceProvider);
-    mqttService.unsubscribe('nicegas/$projectId/+/telemetry/+');
-    mqttService.unsubscribe('nicegas/$projectId/+/event/+');
-    mqttService.unsubscribe('nicegas/$projectId/+/status/connection');
+    mqttService.unsubscribe('nicegas/$projectName/+/telemetry/+');
+    mqttService.unsubscribe('nicegas/$projectName/+/event/+');
+    mqttService.unsubscribe('nicegas/$projectName/+/status/connection');
+  }
+
+  String _parseConnectionStatus(String payload) {
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) {
+        final status = (decoded['status'] as String?)?.trim().toLowerCase() ?? '';
+        return (status == 'online') ? 'online' : 'offline';
+      }
+    } catch (_) {
+      // Fallback if payload is not JSON
+    }
+    final raw = payload.trim().toLowerCase();
+    return (raw == 'online') ? 'online' : 'offline';
   }
 
   void _handleIncomingMessage(String topic, String payload) {
@@ -312,7 +326,7 @@ class MqttNotifier extends StateNotifier<MqttState> {
     if (parts.length < 5) return;
 
     final siteId = parts[1];
-    if (siteId != _currentProjectId) return;
+    if (siteId != _currentProjectName) return;
 
     final deviceId = parts[2];
     final category = parts[3];
@@ -345,8 +359,9 @@ class MqttNotifier extends StateNotifier<MqttState> {
         debugPrint('MqttNotifier: Failed to parse event payload: $e');
       }
     } else if (category == 'status' && component == 'connection') {
+      final statusValue = _parseConnectionStatus(payload);
       final updatedStatus = Map<String, String>.from(state.deviceStatus);
-      updatedStatus[deviceId] = payload.trim().toLowerCase();
+      updatedStatus[deviceId] = statusValue;
       state = state.copyWith(deviceStatus: updatedStatus);
     }
   }

@@ -271,12 +271,12 @@ void main() {
 
       // Simulate incoming telemetry and connection status
       fakeMqtt.simulateMessage(
-        'nicegas/plant-alpha/dev-01/telemetry/biodigester',
+        'nicegas/Bio-CNG Plant Alpha/dev-01/telemetry/biodigester',
         '{"timestamp": "2026-08-31T20:00:00.000Z", "status": "optimal", "metrics": {"pressure": {"v": 4.5, "u": "bar"}}}',
       );
       fakeMqtt.simulateMessage(
-        'nicegas/plant-alpha/dev-01/status/connection',
-        'online',
+        'nicegas/Bio-CNG Plant Alpha/dev-01/status/connection',
+        '{"status": "online", "timestamp": "2026-08-31T20:00:00.000Z"}',
       );
 
       await Future.delayed(Duration.zero);

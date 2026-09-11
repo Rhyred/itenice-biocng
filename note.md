@@ -10,6 +10,7 @@ flutter build apk --release --dart-define=DEMO\_MODE=false --dart-define=API\_BA
 
 flutter run -d 10DC93007H0005N --dart-define=DEMO\_MODE=false --dart-define=API\_BASE\_URL=http://192.168.141.132:8000
 
+http://10.0.2.2 (isolating lcoalhost vitrual phone)
 
 flutter build apk --release `
 
