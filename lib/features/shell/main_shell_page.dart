@@ -29,6 +29,8 @@ class MainShellPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = ref.watch(shellTabProvider);
     final isLocalMonitoring = ref.watch(authProvider).isLocalMonitoring;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrow = screenWidth < 380;
 
     if (!isLocalMonitoring) {
       // Auto-select project pertama dalam mode Authenticated / Demo
@@ -52,19 +54,28 @@ class MainShellPage extends ConsumerWidget {
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(left: 20, right: 20, bottom: 24),
+          padding: EdgeInsets.only(
+            left: isNarrow ? 12 : 20,
+            right: isNarrow ? 12 : 20,
+            bottom: 16,
+          ),
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.bottomCenter,
             children: [
               // White container
               Container(
-                height: 72,
+                height: 68,
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppTheme.borderColor.withValues(alpha: 0.8)),
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, 8)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
                 child: Row(
@@ -75,16 +86,18 @@ class MainShellPage extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          const SizedBox(height: 46), // Space for circle
+                          const SizedBox(height: 42), // Space for circle
                           Text(
                             'AI Assist',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: currentIndex == 2 ? AppTheme.primary : AppTheme.textSecondary,
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: currentIndex == 2 ? FontWeight.w700 : FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ), // Center slot
@@ -96,25 +109,25 @@ class MainShellPage extends ConsumerWidget {
 
               // Center floating button
               Positioned(
-                top: -24,
+                top: -22,
                 child: GestureDetector(
                   onTap: () => ref.read(shellTabProvider.notifier).state = 2,
                   child: Container(
-                    width: 72,
-                    height: 72,
+                    width: 68,
+                    height: 68,
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: Container(
-                      width: 56,
-                      height: 56,
+                      width: 52,
+                      height: 52,
                       decoration: const BoxDecoration(
                         color: AppTheme.primary,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 28),
+                      child: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 26),
                     ),
                   ),
                 ),
@@ -150,13 +163,15 @@ class _NavItem extends ConsumerWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 3),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),

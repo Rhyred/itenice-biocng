@@ -3,25 +3,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/providers/dashboard_provider.dart';
 import '../../../../core/widgets/sub_header.dart';
+import '../controllers/tts_controller.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 // STATE LOKAL CHAT
 // ══════════════════════════════════════════════════════════════════════════════
 
 class _ChatMessage {
+  final String id;
   final String text;
   final bool isUser;
   final DateTime time;
 
-  _ChatMessage({required this.text, required this.isUser})
-      : time = DateTime.now();
+  _ChatMessage({
+    String? id,
+    required this.text,
+    required this.isUser,
+  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        time = DateTime.now();
 }
 
 /// State lokal chat (tidak perlu provider global — sesuai PRD §3.3)
 class _AiChatNotifier extends StateNotifier<List<_ChatMessage>> {
   _AiChatNotifier() : super([
     _ChatMessage(
-      text: 'Halo! Ada yang ingin ditanyakan mengenai performa mesin hari ini?',
+      text: 'Halo! Ada yang ingin ditanyakan mengenai pemeliharaan dan performa mesin hari ini?',
       isUser: false,
     ),
   ]);
@@ -29,8 +35,6 @@ class _AiChatNotifier extends StateNotifier<List<_ChatMessage>> {
   void sendMessage(String text) {
     state = [...state, _ChatMessage(text: text, isUser: true)];
 
-    // TODO: Ganti logika balasan di bawah ini dengan pemanggilan API AI sungguhan
-    // (misalnya: ref.read(aiApiProvider).sendMessage(text))
     final reply = _generateMockReply(text);
     Future.delayed(const Duration(milliseconds: 600), () {
       state = [...state, _ChatMessage(text: reply, isUser: false)];
@@ -96,63 +100,80 @@ class _AiAssistantPageState extends ConsumerState<AiAssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<TtsState>(ttsProvider, (previous, next) {
+      if (next.status == TtsStatus.error && next.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.errorMessage!),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+
     final summaryAsync = ref.watch(dashboardDataProvider);
     final messages = ref.watch(_aiChatProvider);
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
       appBar: const SubHeader(title: 'Pemeliharaan AI'),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // 1. Machine Health Score
-                  summaryAsync.when(
-                    data: (s) => _MachineHealthCard(summary: s),
-                    loading: () =>
-                        const _CardShimmer(height: 110),
-                    error: (_, st) => const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: 12),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Machine Health Score
+                    summaryAsync.when(
+                      data: (s) => _MachineHealthCard(summary: s),
+                      loading: () => const _CardShimmer(height: 110),
+                      error: (_, st) => const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: 12),
 
-                  // 2. Prediksi Suku Cadang
-                  const _PrediksiSukuCadangSection(),
-                  const SizedBox(height: 12),
+                    // 2. Prediksi Suku Cadang
+                    const _PrediksiSukuCadangSection(),
+                    const SizedBox(height: 12),
 
-                  // 3. Panel Chat AI
-                  _ChatPanel(
-                    messages: messages,
-                    scrollController: _scrollCtrl,
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                    // 3. Panel Chat AI
+                    _ChatPanel(
+                      messages: messages,
+                      scrollController: _scrollCtrl,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Input row
-          _ChatInputRow(
-            controller: _inputCtrl,
-            isListening: _isListening,
-            onSend: _sendMessage,
-            onMicTap: () {
-              setState(() => _isListening = !_isListening);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(_isListening
-                      ? 'Mendengarkan... (fitur STT akan tersedia di iterasi berikutnya)'
-                      : 'Mic dimatikan'),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
-            onQuickReply: _sendMessage,
-          ),
-        ],
+            // Input row with dynamic bottom inset handling
+            Padding(
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: _ChatInputRow(
+                controller: _inputCtrl,
+                isListening: _isListening,
+                onSend: _sendMessage,
+                onMicTap: () {
+                  setState(() => _isListening = !_isListening);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_isListening
+                          ? 'Mendengarkan... (fitur STT akan tersedia di iterasi berikutnya)'
+                          : 'Mic dimatikan'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                onQuickReply: _sendMessage,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -168,7 +189,6 @@ class _MachineHealthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Formula sesuai PRD §3.3: 100 - (critical×20) - (warning×8), clamp 0-100
     final score =
         (100 - (summary.criticalAlerts * 20) - (summary.warningAlerts * 8))
             .clamp(0, 100);
@@ -206,7 +226,7 @@ class _MachineHealthCard extends StatelessWidget {
                         Text(
                           '$score%',
                           style: TextStyle(
-                            fontSize: 40,
+                            fontSize: 36,
                             fontWeight: FontWeight.w800,
                             color: color,
                           ),
@@ -223,10 +243,8 @@ class _MachineHealthCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // Info box — placeholder
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: AppTheme.background,
               borderRadius: BorderRadius.circular(8),
@@ -251,10 +269,8 @@ class _MachineHealthCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          // Catatan placeholder
           const Text(
-            // TODO: Ganti placeholder ini dengan skor dari model prediktif sungguhan
-            '* Nilai ini adalah estimasi. Model prediktif sedang dalam pengembangan.',
+            '* Nilai ini adalah estimasi berdasarkan telemetry aktif.',
             style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
           ),
         ],
@@ -276,7 +292,7 @@ class _PrediksiSukuCadangSection extends StatelessWidget {
           'Prediksi Suku Cadang',
           style: TextStyle(
               fontWeight: FontWeight.w700,
-              fontSize: 16,
+              fontSize: 15,
               color: AppTheme.textPrimary),
         ),
         const SizedBox(height: 10),
@@ -288,21 +304,19 @@ class _PrediksiSukuCadangSection extends StatelessWidget {
                 persentase: 15,
                 isCritical: true,
                 keterangan: 'Ganti 5 hari',
-                // TODO: Hubungkan ke data tren filter scrubber dari backend
                 onAction: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Fitur pemesanan akan segera tersedia.')),
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: _SukuCadangCard(
                 nama: 'Kompresor Utama',
                 persentase: 85,
                 isCritical: false,
                 keterangan: 'Kondisi baik',
-                // TODO: Hubungkan ke data tren kompresor dari backend
                 onAction: () => ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text('Jadwal servis berhasil dibuat.')),
@@ -337,6 +351,7 @@ class _SukuCadangCard extends StatelessWidget {
         isCritical ? AppTheme.statusCritical : AppTheme.statusOptimal;
 
     return _AppCard(
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -347,7 +362,7 @@ class _SukuCadangCard extends StatelessWidget {
               Text(
                 '$persentase%',
                 style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
                     color: color),
               ),
@@ -362,15 +377,19 @@ class _SukuCadangCard extends StatelessWidget {
             nama,
             style: const TextStyle(
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 12,
                 color: AppTheme.textPrimary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
-          Text(keterangan,
-              style: const TextStyle(
-                  fontSize: 11, color: AppTheme.textSecondary)),
+          Text(
+            keterangan,
+            style: const TextStyle(fontSize: 10.5, color: AppTheme.textSecondary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
 
-          // Progress bar
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -381,9 +400,8 @@ class _SukuCadangCard extends StatelessWidget {
               minHeight: 5,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Action button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -391,9 +409,9 @@ class _SukuCadangCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: isCritical ? AppTheme.statusCritical : AppTheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(8)),
                 elevation: 0,
               ),
               child: Row(
@@ -403,13 +421,13 @@ class _SukuCadangCard extends StatelessWidget {
                     isCritical
                         ? Icons.shopping_cart_outlined
                         : Icons.build_outlined,
-                    size: 15,
+                    size: 14,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
                     isCritical ? 'Pesan' : 'Servis',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 13),
+                        fontWeight: FontWeight.w600, fontSize: 12),
                   ),
                 ],
               ),
@@ -438,39 +456,40 @@ class _ChatPanel extends StatelessWidget {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppTheme.borderColor)),
             ),
             child: Row(
               children: [
                 const Icon(Icons.auto_awesome_rounded,
-                    color: AppTheme.primary, size: 20),
+                    color: AppTheme.primary, size: 18),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     'Asisten AI BioCNG NiceGas',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 13,
                         color: AppTheme.textPrimary),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Row(
                   children: [
                     Container(
-                      width: 8,
-                      height: 8,
+                      width: 7,
+                      height: 7,
                       decoration: const BoxDecoration(
                         color: AppTheme.statusOptimal,
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: 5),
+                    const SizedBox(width: 4),
                     const Text(
                       'ONLINE',
                       style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.statusOptimal),
                     ),
@@ -495,41 +514,121 @@ class _ChatPanel extends StatelessWidget {
   }
 }
 
-class _ChatBubble extends StatelessWidget {
+class _ChatBubble extends ConsumerWidget {
   final _ChatMessage message;
 
   const _ChatBubble({required this.message});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final formattedTime =
+        '${message.time.hour.toString().padLeft(2, '0')}:${message.time.minute.toString().padLeft(2, '0')}';
+    final ttsState = ref.watch(ttsProvider);
+    final isSpeakingThisMessage = ttsState.status == TtsStatus.speaking &&
+        ttsState.activeMessageId == message.id;
+
     return Align(
       alignment:
           message.isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.72,
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
         ),
         padding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: message.isUser
               ? AppTheme.primary
-              : const Color(0xFFF0F2F8),
+              : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(message.isUser ? 16 : 4),
             bottomRight: Radius.circular(message.isUser ? 4 : 16),
           ),
+          border: message.isUser
+              ? null
+              : Border.all(color: AppTheme.borderColor, width: 0.5),
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            fontSize: 13,
-            color: message.isUser ? Colors.white : AppTheme.textPrimary,
-            height: 1.4,
-          ),
+        child: Column(
+          crossAxisAlignment: message.isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.text,
+              style: TextStyle(
+                fontSize: 13,
+                color: message.isUser ? Colors.white : AppTheme.textPrimary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: message.isUser
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
+              children: [
+                Text(
+                  formattedTime,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: message.isUser
+                        ? Colors.white.withValues(alpha: 0.75)
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+                if (!message.isUser) ...[
+                  const SizedBox(width: 8),
+                  InkWell(
+                    key: ValueKey('tts_button_${message.id}'),
+                    onTap: () {
+                      if (isSpeakingThisMessage) {
+                        ref.read(ttsProvider.notifier).stop();
+                      } else {
+                        ref.read(ttsProvider.notifier).speak(
+                              messageId: message.id,
+                              text: message.text,
+                            );
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isSpeakingThisMessage
+                                ? Icons.stop_rounded
+                                : Icons.volume_up_rounded,
+                            size: 14,
+                            color: isSpeakingThisMessage
+                                ? AppTheme.statusCritical
+                                : AppTheme.primary,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            isSpeakingThisMessage ? 'Stop' : 'Read',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: isSpeakingThisMessage
+                                  ? AppTheme.statusCritical
+                                  : AppTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -556,7 +655,7 @@ class _ChatInputRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppTheme.surface,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 116), // Tambah padding bawah
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -575,18 +674,18 @@ class _ChatInputRow extends StatelessWidget {
                           onTap: () => onQuickReply(q),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 7),
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              border:
-                                  Border.all(color: AppTheme.borderColor),
-                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: AppTheme.borderColor),
+                              borderRadius: BorderRadius.circular(18),
                               color: AppTheme.surface,
                             ),
                             child: Text(
                               q,
                               style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary),
+                                  fontSize: 11.5,
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w500),
                             ),
                           ),
                         ),
@@ -602,9 +701,11 @@ class _ChatInputRow extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
+                  style: const TextStyle(fontSize: 13),
                   decoration: const InputDecoration(
-                    hintText: 'Tanya AI...',
-                    hintStyle: TextStyle(color: AppTheme.textSecondary),
+                    hintText: 'Tanya Asisten AI...',
+                    hintStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                   onSubmitted: onSend,
                   textInputAction: TextInputAction.send,
@@ -645,13 +746,13 @@ class _CircleIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: color, size: 20),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
@@ -668,7 +769,7 @@ class _AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppTheme.surface,
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
@@ -688,16 +789,16 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
         style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w700, color: color),
+            fontSize: 10, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }

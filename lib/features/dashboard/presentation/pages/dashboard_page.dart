@@ -13,6 +13,8 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/mqtt/mqtt_provider.dart';
 import '../../../../core/mqtt/mqtt_state.dart';
 import '../../../telemetry/presentation/pages/telemetry_history_page.dart';
+import '../widgets/digital_twin_3d_viewer.dart';
+import '../models/digital_twin_targets.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -21,8 +23,7 @@ class DashboardPage extends ConsumerStatefulWidget {
 }
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
-  int _selectedNodeIndex = 0;
-  final List<String> _nodeLabels = ['Node 1: Biodigester','Node 2: Purifikasi','Node 3: Kompresi'];
+  DigitalTwinNode _selectedNode = DigitalTwinNode.overview;
 
   @override
   Widget build(BuildContext context) {
@@ -137,9 +138,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         mqttState.realtimeTelemetry.keys.any((k) => k.startsWith('$mainDeviceId:'));
 
     final auth = ref.watch(authProvider);
-    return Stack(
-      children: [
-        RefreshIndicator(
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 380;
+
+        return RefreshIndicator(
           color: AppTheme.primary,
           onRefresh: () => ref.refresh(dashboardDataProvider.future),
           child: SingleChildScrollView(
@@ -176,24 +180,35 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // 4. Device Status + AI Greeting Bar
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _DeviceStatusSmallCard(summary: mergedSummary)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _AiGreetingBar(onTap: () => ref.read(shellTabProvider.notifier).state = 2, summary: mergedSummary)),
-                  ],
-                ),
+                // 4. Device Status + AI Greeting Bar (Responsive Layout)
+                if (isNarrow) ...[
+                  _DeviceStatusSmallCard(summary: mergedSummary),
+                  const SizedBox(height: 10),
+                  _AiGreetingBar(
+                    onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                    summary: mergedSummary,
+                  ),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _DeviceStatusSmallCard(summary: mergedSummary)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _AiGreetingBar(
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                          summary: mergedSummary,
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 12),
 
                 // 5. Sensor Node Digital Twin Explorer
                 _DigitalTwinExplorer(
                   summary: mergedSummary,
-                  selectedNodeIndex: _selectedNodeIndex,
-                  nodeLabels: _nodeLabels,
-                  onNodeSelected: (i) =>
-                      setState(() => _selectedNodeIndex = i),
+                  selectedNode: _selectedNode,
+                  onNodeSelected: (node) => setState(() => _selectedNode = node),
                 ),
                 const SizedBox(height: 12),
 
@@ -203,12 +218,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               ],
             ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
-
-
 
   Widget _buildError(WidgetRef ref, String error) {
     return Center(
@@ -327,14 +340,14 @@ class _DeviceStatusSmallCard extends StatelessWidget {
     final offline = summary.offlineDevices;
     return _AppCard(
       child: Row(children: [
-        SizedBox(width: 56, height: 56,
-          child: total == 0 ? const Center(child: Icon(Icons.devices_rounded, color: AppTheme.textSecondary, size: 28)) : _MiniDonut(online: online, offline: offline, total: total)),
-        const SizedBox(width: 12),
+        SizedBox(width: 52, height: 52,
+          child: total == 0 ? const Center(child: Icon(Icons.devices_rounded, color: AppTheme.textSecondary, size: 26)) : _MiniDonut(online: online, offline: offline, total: total)),
+        const SizedBox(width: 10),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Status Perangkat', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
-          const SizedBox(height: 4),
-          Text('${total > 0 ? (online / total * 100).round() : 0}%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
-          const Text('Online', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          const SizedBox(height: 2),
+          Text('${total > 0 ? (online / total * 100).round() : 0}%', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+          const Text('Online', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
           const SizedBox(height: 4),
           _LegendDot(color: AppTheme.statusOptimal, label: 'Online: $online'),
           const SizedBox(height: 2),
@@ -359,9 +372,9 @@ class _DonutPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 4;
-    canvas.drawCircle(center, radius, Paint()..color = AppTheme.statusCritical.withValues(alpha: 0.25)..style = PaintingStyle.stroke..strokeWidth = 9.0..strokeCap = StrokeCap.round);
+    canvas.drawCircle(center, radius, Paint()..color = AppTheme.statusCritical.withValues(alpha: 0.25)..style = PaintingStyle.stroke..strokeWidth = 8.0..strokeCap = StrokeCap.round);
     canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -1.5708, 6.2832 * onlineFrac, false,
-      Paint()..color = AppTheme.statusOptimal..style = PaintingStyle.stroke..strokeWidth = 9.0..strokeCap = StrokeCap.round);
+      Paint()..color = AppTheme.statusOptimal..style = PaintingStyle.stroke..strokeWidth = 8.0..strokeCap = StrokeCap.round);
   }
   @override
   bool shouldRepaint(_DonutPainter old) => old.onlineFrac != onlineFrac;
@@ -372,9 +385,9 @@ class _LegendDot extends StatelessWidget {
   const _LegendDot({required this.color, required this.label});
   @override
   Widget build(BuildContext context) => Row(children: [
-    Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+    Container(width: 7, height: 7, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
     const SizedBox(width: 5),
-    Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+    Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
   ]);
 }
 
@@ -388,47 +401,62 @@ class _AiGreetingBar extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: _AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(children: [
           Container(width: 32, height: 32, decoration: BoxDecoration(color: AppTheme.statusOptimal.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
             child: const Icon(Icons.auto_awesome_rounded, color: AppTheme.statusOptimal, size: 18)),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('AI ASSISTANT', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 10, letterSpacing: 0.5, color: AppTheme.textSecondary)),
             const SizedBox(height: 2),
-            Text(statusText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary), maxLines: 1),
+            Text(statusText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
           ])),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppTheme.textSecondary),
+          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.textSecondary),
         ]),
       ),
     );
   }
 }
 
-/// 4. Sensor Node Digital Twin Explorer
+/// Sensor Node Digital Twin Explorer (Synchronized 3D & Process Pipeline)
 class _DigitalTwinExplorer extends ConsumerWidget {
   final DashboardSummary summary;
-  final int selectedNodeIndex;
-  final List<String> nodeLabels;
-  final ValueChanged<int> onNodeSelected;
-  const _DigitalTwinExplorer({required this.summary, required this.selectedNodeIndex, required this.nodeLabels, required this.onNodeSelected});
+  final DigitalTwinNode selectedNode;
+  final ValueChanged<DigitalTwinNode> onNodeSelected;
+
+  const _DigitalTwinExplorer({
+    required this.summary,
+    required this.selectedNode,
+    required this.onNodeSelected,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final telemetry = summary.latestTelemetry.isNotEmpty
-        ? (selectedNodeIndex < summary.latestTelemetry.length
-            ? summary.latestTelemetry[selectedNodeIndex]
-            : summary.latestTelemetry.first)
-        : null;
-
-    final nodeKeywords = ['biodigester', 'purifikasi', 'kompresi'];
-    final keyword = nodeKeywords[selectedNodeIndex];
+    // Resolve matching telemetry based on active selected node
     TelemetryModel? matchedTelemetry;
-    for (final t in summary.latestTelemetry) {
-      if ((t.component ?? '').toLowerCase().contains(keyword)) { matchedTelemetry = t; break; }
+    if (selectedNode != DigitalTwinNode.overview) {
+      final keyword = selectedNode.name.toLowerCase();
+      for (final t in summary.latestTelemetry) {
+        if ((t.component ?? '').toLowerCase().contains(keyword)) {
+          matchedTelemetry = t;
+          break;
+        }
+      }
     }
-    matchedTelemetry ??= telemetry;
+    matchedTelemetry ??= summary.latestTelemetry.isNotEmpty ? summary.latestTelemetry.first : null;
     final displayTelemetry = matchedTelemetry;
+
+    final isLive = displayTelemetry != null &&
+        (AppConfig.isDemoMode ||
+            ref.watch(mqttProvider.select((s) => s.realtimeTelemetry
+                .containsKey('${displayTelemetry.deviceId}:${displayTelemetry.component}'))));
+
+    final nodeChips = [
+      (DigitalTwinNode.overview, 'Overview', Icons.grid_view_rounded),
+      (DigitalTwinNode.biodigester, 'Biodigester', Icons.water_drop_rounded),
+      (DigitalTwinNode.purifikasi, 'Purifikasi', Icons.filter_alt_rounded),
+      (DigitalTwinNode.kompresi, 'Kompresi', Icons.compress_rounded),
+    ];
 
     return _AppCard(
       padding: EdgeInsets.zero,
@@ -441,16 +469,19 @@ class _DigitalTwinExplorer extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'PROCESS PIPELINE (DIGITAL TWIN)',
-                  style: TextStyle(
-                    fontSize: 10,
-                    letterSpacing: 1.0,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textSecondary,
+                const Expanded(
+                  child: Text(
+                    'PROCESS PIPELINE (DIGITAL TWIN)',
+                    style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 1.0,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (displayTelemetry != null && (AppConfig.isDemoMode || ref.watch(mqttProvider.select((s) => s.realtimeTelemetry.containsKey('${displayTelemetry.deviceId}:${displayTelemetry.component}')))))
+                if (isLive)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(color: AppTheme.statusCritical, borderRadius: BorderRadius.circular(4)),
@@ -460,59 +491,71 @@ class _DigitalTwinExplorer extends ConsumerWidget {
             ),
           ),
 
-          // Tab Chips
+          // Process Pipeline Selector Chips
           SizedBox(
-            height: 36,
+            height: 38,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: nodeLabels.length,
-              separatorBuilder: (_, _) => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(Icons.arrow_right_alt_rounded, color: AppTheme.borderColor, size: 20),
-              ),
+              itemCount: nodeChips.length,
+              separatorBuilder: (_, index) => index == 0
+                  ? const SizedBox(width: 6)
+                  : const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2),
+                      child: Icon(Icons.arrow_right_alt_rounded, color: AppTheme.borderColor, size: 18),
+                    ),
               itemBuilder: (context, i) {
-                final selected = i == selectedNodeIndex;
+                final (node, label, icon) = nodeChips[i];
+                final isSelected = node == selectedNode;
                 return GestureDetector(
-                  onTap: () => onNodeSelected(i),
+                  onTap: () => onNodeSelected(node),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected ? AppTheme.primary : AppTheme.surface,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: selected ? AppTheme.primary : AppTheme.borderColor),
+                      color: isSelected ? AppTheme.primary : AppTheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isSelected ? AppTheme.primary : AppTheme.borderColor),
                     ),
-                    child: Center(
-                      child: Text(
-                        nodeLabels[i].split(':').last.trim().toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 0.5,
-                          fontWeight: FontWeight.w600,
-                          color: selected ? Colors.white : AppTheme.textSecondary,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 14,
+                          color: isSelected ? Colors.white : AppTheme.textSecondary,
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Text(
+                          label.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            color: isSelected ? Colors.white : AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 16),
-          Container(
-            height: 120,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.background,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: AppTheme.borderColor),
-            ),
-            child: const Center(
-              child: Text('[3D Asset Placeholder]', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 14),
+
+          // 3D Miniature Model Viewer Container
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DigitalTwin3dViewer(
+              height: 280,
+              selectedNode: selectedNode,
+              onNodeSelected: onNodeSelected,
             ),
           ),
           const SizedBox(height: 12),
+
+          // Telemetry Metrics for Selected Node
           if (matchedTelemetry != null && matchedTelemetry.metrics.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

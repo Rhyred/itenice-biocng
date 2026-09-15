@@ -44,6 +44,9 @@ dependencies:
   fl_chart: ^0.69.0
   # Password hashing
   crypto: ^3.0.3
+  # 3D Model Viewer
+  model_viewer_plus: ^1.9.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +61,7 @@ dev_dependencies:
   build_runner: ^2.15.1
   mockito: ^5.4.4
   freezed: ^4.0.0-dev.3
+  webview_flutter_platform_interface: ^2.15.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -73,6 +77,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/icons/
+    - assets/3D_Digital_Twin/BioCNG_Plant.glb
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
